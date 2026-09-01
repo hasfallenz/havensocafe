@@ -637,7 +637,7 @@ export async function processGroqAgentRequest(
     context.currentCartItems &&
     context.currentCartItems.length > 0;
 
-  if (isQuantityReductionPattern) {
+  if (isQuantityReductionPattern && context.currentCartItems && context.currentCartItems.length > 0) {
     const targetQuantity =
       lowerCheckMsg.includes("2 aja") || lowerCheckMsg.includes("jadi 2") ? 2 : 1;
 
@@ -650,7 +650,7 @@ export async function processGroqAgentRequest(
       }
     }
 
-    const matchedMenu = menuItems.find((m) => m.id === targetItem.menuItemId);
+    const matchedMenu = targetItem ? menuItems.find((m) => m.id === targetItem.menuItemId) : null;
     const itemName = matchedMenu?.name || "Menu";
 
     return {

@@ -6,6 +6,7 @@ interface RichChatMessageProps {
   content: string;
   metadata?: string | null;
   onConfirmPayment?: () => void;
+  onQuickOrder?: (name: string) => void;
   isAi?: boolean;
 }
 
@@ -13,6 +14,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   content,
   metadata,
   onConfirmPayment,
+  onQuickOrder,
   isAi = false,
 }) => {
   const [hasConfirmed, setHasConfirmed] = useState(false);

@@ -118,10 +118,14 @@ export async function POST(request: Request) {
       const activeSession = await prisma.customerSession.findFirst({
         where: { tableNumber, status: "ACTIVE" },
         orderBy: { createdAt: "desc" },
-        include: { conversation: true },
       });
-      if (activeSession?.conversation) {
-        validConversationId = activeSession.conversation.id;
+      if (activeSession) {
+        const conv = await prisma.conversation.findUnique({
+          where: { sessionId: activeSession.id },
+        });
+        if (conv) {
+          validConversationId = conv.id;
+        }
       }
     }
 

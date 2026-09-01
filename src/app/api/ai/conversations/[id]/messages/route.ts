@@ -139,6 +139,7 @@ export async function POST(
     let updatedCart = existingCart;
 
     let extraMetadata: Record<string, any> = {};
+    let finalReplyContent = aiResult.reply;
 
     for (const act of aiResult.actions) {
       if (act.type === "ADD_ITEM" && act.menuItemId) {
@@ -455,7 +456,6 @@ export async function POST(
     }
 
     // Generate cumulative full-order confirmation if cart items were added/modified/customized
-    let finalReplyContent = aiResult.reply;
     if (extraMetadata.paymentPending) {
       finalReplyContent = `Mohon maaf kak, setelah sistem kami melakukan pengecekan mutasi ke DANA secara real-time, dana sebesar Rp ${(updatedCart?.total || 0).toLocaleString("id-ID")} untuk Meja **${tableNumber || "A1"}** masih **BELUM DITEMUKAN / BELUM DITRANSFER** ⚠️.\n\nSilakan selesaikan pembayaran terlebih dahulu melalui scan barcode QRIS di atas ya kak. Jika sudah berhasil transfer, silakan klik tombol **⚡ Verifikasi Pembayaran Otomatis** kembali 😊`;
     } else if (

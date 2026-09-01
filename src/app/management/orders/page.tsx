@@ -398,7 +398,7 @@ export default function OrdersManagementPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="danger"
                   isLoading={isVerifying === selectedOrder.id}
                   onClick={() => handleRejectPayment(selectedOrder.id)}
                   className="px-4"

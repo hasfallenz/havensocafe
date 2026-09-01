@@ -53,14 +53,16 @@ export async function GET() {
 
     for (const order of paidOrders) {
       for (const item of order.items) {
-        const existing = itemMap.get(item.name) || {
-          name: item.name,
+        const itemName = item.nameSnapshot;
+        const itemPrice = item.priceSnapshot;
+        const existing = itemMap.get(itemName) || {
+          name: itemName,
           count: 0,
           revenue: 0,
         };
         existing.count += item.quantity;
-        existing.revenue += item.price * item.quantity;
-        itemMap.set(item.name, existing);
+        existing.revenue += itemPrice * item.quantity;
+        itemMap.set(itemName, existing);
       }
     }
 
