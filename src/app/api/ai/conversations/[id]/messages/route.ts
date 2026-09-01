@@ -61,7 +61,7 @@ export async function POST(
       );
     }
 
-    const conversation = await prisma.conversation.findUnique({
+    let conversation = await prisma.conversation.findUnique({
       where: { id },
       include: {
         messages: {
@@ -71,10 +71,35 @@ export async function POST(
     });
 
     if (!conversation) {
-      return NextResponse.json(
-        { success: false, error: { code: "CONVERSATION_NOT_FOUND", message: "Conversation not found" } },
-        { status: 404 }
-      );
+      // Auto-recover session and conversation on serverless container instance
+      const session = await prisma.customerSession.create({
+        data: {
+          tableNumber: tableNumber || "A1",
+          status: "ACTIVE",
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+        },
+      });
+
+      await prisma.cart.create({
+        data: {
+          sessionId: session.id,
+          status: "ACTIVE",
+        },
+      });
+
+      conversation = await prisma.conversation.create({
+        data: {
+          id,
+          sessionId: session.id,
+          status: "ACTIVE",
+          aiStatus: "ACTIVE",
+        },
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
     }
 
     // 1. Save incoming message

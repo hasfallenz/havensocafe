@@ -655,14 +655,7 @@ export async function processGroqAgentRequest(
     };
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || apiKey.trim() === "") {
-    console.warn("GROQ_API_KEY is not set.");
-    return {
-      reply: "Maaf kak, layanan asisten Havenso AI sedang disiapkan.",
-      actions: [],
-    };
-  }
+  const apiKey = process.env.GROQ_API_KEY || "";
 
   // Format available and stocked menu catalog for system context
   const menuCatalogText = menuItems
