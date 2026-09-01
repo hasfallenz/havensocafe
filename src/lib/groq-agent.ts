@@ -598,25 +598,13 @@ export async function processGroqAgentRequest(
     };
   }
 
-  // 8. Motherly Empathy & Comforting Support (Curhat / Galau / Sedih / Stress)
+  // 9. Motherly Empathy & Comforting Support (Curhat / Galau / Sedih / Stress)
   const isDistress = DISTRESS_KEYWORDS.some((kw) => lowerCheckMsg.includes(kw));
   if (isDistress && !lowerCheckMsg.includes("pesen") && !lowerCheckMsg.includes("order")) {
     return {
       reply: `Duh sayang, tarik napas perlahan ya nak... ❤️ Kalau hari ini terasa berat, sedih, atau melelahkan, kamu sudah hebat banget bisa melewatinya sampai detik ini. Di Havenso Cafe, kamu boleh duduk santai dan istirahat sejenak ya.\n\nBiar hatimu lebih tenang dan hangat, mau saya pesankan secangkir **Chocolate Dark Of The Moon** manis yang pekat atau **Jasmine Tea** hangat yang menenangkan? Apapun yang kamu butuhkan, kami siap temani ya nak 🤗☕`,
       actions: [],
       intent: "EMPATHY_COMFORT",
-    };
-  }
-
-  // 9. Pure Slang Greetings Check (hai, halo, der, kuk, kiw, bro, kak, woi, pe, p, dll)
-  const isGreetingOnly =
-    SLANG_GREETINGS.some((g) => lowerCheckMsg === g || lowerCheckMsg === `${g} kak` || lowerCheckMsg === `${g} min`) &&
-    (!context.currentCartItems || context.currentCartItems.length === 0);
-  if (isGreetingOnly) {
-    return {
-      reply: `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja **${tableNum}** hari ini? Silakan ketik langsung menu yang kakak inginkan ya!`,
-      actions: [],
-      intent: "GREETING",
     };
   }
 
@@ -865,9 +853,10 @@ ${menuCatalogText}
   ];
 
   const modelCandidates = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
+    "qwen/qwen3.6-27b",
   ];
 
   for (const model of modelCandidates) {
