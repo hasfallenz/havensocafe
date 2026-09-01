@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
 export async function GET() {
   try {
+    await ensureDatabaseSeeded();
+
     const categories = await prisma.category.findMany({
       orderBy: { displayOrder: "asc" },
       include: {

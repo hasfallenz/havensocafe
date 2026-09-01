@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
 export async function GET(request: Request) {
   try {
+    await ensureDatabaseSeeded();
+
     const { searchParams } = new URL(request.url);
     const categorySlug = searchParams.get("category");
     const search = searchParams.get("search");
