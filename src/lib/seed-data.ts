@@ -1,48 +1,225 @@
 import { prisma } from "@/lib/db";
 
+const DDL_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS User (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'SERVICE_STAFF',
+    password TEXT NOT NULL DEFAULT 'havenso123',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS "Table" (
+    id TEXT PRIMARY KEY,
+    tableNumber TEXT UNIQUE NOT NULL,
+    capacity INTEGER NOT NULL DEFAULT 4,
+    location TEXT NOT NULL DEFAULT 'Indoor',
+    status TEXT NOT NULL DEFAULT 'AVAILABLE',
+    qrCode TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS CustomerSession (
+    id TEXT PRIMARY KEY,
+    tableId TEXT,
+    tableNumber TEXT,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    expiresAt DATETIME,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS Category (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    displayOrder INTEGER NOT NULL DEFAULT 0,
+    isActive BOOLEAN NOT NULL DEFAULT 1,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS MenuItem (
+    id TEXT PRIMARY KEY,
+    categoryId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT NOT NULL,
+    price REAL NOT NULL,
+    imageUrl TEXT NOT NULL,
+    isAvailable BOOLEAN NOT NULL DEFAULT 1,
+    stock INTEGER NOT NULL DEFAULT 50,
+    preparationTime INTEGER NOT NULL DEFAULT 5,
+    ingredients TEXT,
+    allergens TEXT,
+    recommendationTags TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoryId) REFERENCES Category(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS InventoryItem (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    stock REAL NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT 'pcs',
+    minStock REAL NOT NULL DEFAULT 10,
+    status TEXT NOT NULL DEFAULT 'AVAILABLE',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS Cart (
+    id TEXT PRIMARY KEY,
+    sessionId TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax REAL NOT NULL DEFAULT 0,
+    discount REAL NOT NULL DEFAULT 0,
+    total REAL NOT NULL DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS CartItem (
+    id TEXT PRIMARY KEY,
+    cartId TEXT NOT NULL,
+    menuItemId TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    customizations TEXT,
+    unitPrice REAL NOT NULL,
+    subtotal REAL NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cartId) REFERENCES Cart(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS "Order" (
+    id TEXT PRIMARY KEY,
+    orderNumber TEXT UNIQUE NOT NULL,
+    sessionId TEXT NOT NULL,
+    tableId TEXT,
+    tableNumber TEXT,
+    status TEXT NOT NULL DEFAULT 'QUEUED',
+    paymentStatus TEXT NOT NULL DEFAULT 'PENDING',
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax REAL NOT NULL DEFAULT 0,
+    discount REAL NOT NULL DEFAULT 0,
+    total REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS OrderItem (
+    id TEXT PRIMARY KEY,
+    orderId TEXT NOT NULL,
+    menuItemId TEXT NOT NULL,
+    nameSnapshot TEXT NOT NULL,
+    priceSnapshot REAL NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    customizations TEXT,
+    subtotal REAL NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (orderId) REFERENCES "Order"(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS Payment (
+    id TEXT PRIMARY KEY,
+    orderId TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'QRIS',
+    providerReference TEXT,
+    amount REAL NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'IDR',
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    metadata TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (orderId) REFERENCES "Order"(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS Conversation (
+    id TEXT PRIMARY KEY,
+    sessionId TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    aiStatus TEXT NOT NULL DEFAULT 'ACTIVE',
+    communicationProfile TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS Message (
+    id TEXT PRIMARY KEY,
+    conversationId TEXT NOT NULL,
+    senderType TEXT NOT NULL,
+    content TEXT NOT NULL,
+    metadata TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversationId) REFERENCES Conversation(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS SupportTicket (
+    id TEXT PRIMARY KEY,
+    conversationId TEXT,
+    orderId TEXT,
+    tableId TEXT,
+    tableNumber TEXT,
+    type TEXT NOT NULL DEFAULT 'PHYSICAL_ASSISTANCE',
+    priority TEXT NOT NULL DEFAULT 'P1',
+    status TEXT NOT NULL DEFAULT 'WAITING',
+    summary TEXT NOT NULL,
+    metadata TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS AuditLog (
+    id TEXT PRIMARY KEY,
+    actionType TEXT NOT NULL,
+    performedBy TEXT NOT NULL,
+    entityType TEXT NOT NULL,
+    entityId TEXT,
+    details TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`
+];
+
 export async function ensureDatabaseSeeded() {
   try {
-    const categoryCount = await prisma.category.count();
-    const menuItemCount = await prisma.menuItem.count();
-
-    if (categoryCount > 0 && menuItemCount > 0) {
-      return; // Already seeded
-    }
-
-    console.log("Database empty, auto-seeding initial Havenso Cafe menu and tables...");
-
-    // 1. Seed Tables (A1 to A10) if empty
-    const tableCount = await prisma.table.count();
-    if (tableCount === 0) {
-      const tableData = [
-        { tableNumber: "A1", capacity: 2, location: "Indoor Main", status: "AVAILABLE" },
-        { tableNumber: "A2", capacity: 2, location: "Indoor Main", status: "AVAILABLE" },
-        { tableNumber: "A3", capacity: 4, location: "Indoor Window", status: "AVAILABLE" },
-        { tableNumber: "A4", capacity: 4, location: "Indoor Window", status: "AVAILABLE" },
-        { tableNumber: "A5", capacity: 4, location: "Indoor Central", status: "AVAILABLE" },
-        { tableNumber: "A6", capacity: 4, location: "Indoor Central", status: "AVAILABLE" },
-        { tableNumber: "A7", capacity: 6, location: "Indoor Lounge", status: "AVAILABLE" },
-        { tableNumber: "A8", capacity: 6, location: "Indoor Lounge", status: "AVAILABLE" },
-        { tableNumber: "A9", capacity: 8, location: "VIP Glasshouse", status: "AVAILABLE" },
-        { tableNumber: "A10", capacity: 8, location: "VIP Glasshouse", status: "AVAILABLE" },
-      ];
-
-      for (const t of tableData) {
-        await prisma.table.upsert({
-          where: { tableNumber: t.tableNumber },
-          update: {},
-          create: {
-            tableNumber: t.tableNumber,
-            capacity: t.capacity,
-            location: t.location,
-            status: t.status,
-            qrCode: `/customer?table=${t.tableNumber}`,
-          },
-        });
+    // 1. Ensure all tables exist via DDL
+    for (const ddl of DDL_STATEMENTS) {
+      try {
+        await prisma.$executeRawUnsafe(ddl);
+      } catch (e) {
+        // Table may already exist
       }
     }
 
-    // 2. Seed Categories
+    const menuItemCount = await prisma.menuItem.count();
+    if (menuItemCount > 0) {
+      return; // Already populated
+    }
+
+    console.log("Database tables verified, auto-seeding initial Havenso Cafe menu and tables...");
+
+    // 2. Seed Tables (A1 to A10)
+    const tableData = [
+      { tableNumber: "A1", capacity: 2, location: "Indoor Main", status: "AVAILABLE" },
+      { tableNumber: "A2", capacity: 2, location: "Indoor Main", status: "AVAILABLE" },
+      { tableNumber: "A3", capacity: 4, location: "Indoor Window", status: "AVAILABLE" },
+      { tableNumber: "A4", capacity: 4, location: "Indoor Window", status: "AVAILABLE" },
+      { tableNumber: "A5", capacity: 4, location: "Indoor Central", status: "AVAILABLE" },
+      { tableNumber: "A6", capacity: 4, location: "Indoor Central", status: "AVAILABLE" },
+      { tableNumber: "A7", capacity: 6, location: "Indoor Lounge", status: "AVAILABLE" },
+      { tableNumber: "A8", capacity: 6, location: "Indoor Lounge", status: "AVAILABLE" },
+      { tableNumber: "A9", capacity: 8, location: "VIP Glasshouse", status: "AVAILABLE" },
+      { tableNumber: "A10", capacity: 8, location: "VIP Glasshouse", status: "AVAILABLE" },
+    ];
+
+    for (const t of tableData) {
+      await prisma.table.upsert({
+        where: { tableNumber: t.tableNumber },
+        update: {},
+        create: {
+          tableNumber: t.tableNumber,
+          capacity: t.capacity,
+          location: t.location,
+          status: t.status,
+          qrCode: `/customer?table=${t.tableNumber}`,
+        },
+      });
+    }
+
+    // 3. Seed Categories
     const catCoffee = await prisma.category.upsert({
       where: { slug: "coffee" },
       update: {},
@@ -67,7 +244,7 @@ export async function ensureDatabaseSeeded() {
       create: { name: "Food", slug: "food", displayOrder: 4, isActive: true },
     });
 
-    // 3. Seed 20 Canonical Menu Items
+    // 4. Seed 20 Canonical Menu Items
     const menuItems = [
       // Coffee
       {
