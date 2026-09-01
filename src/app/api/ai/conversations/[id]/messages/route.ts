@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { processGroqAgentRequest } from "@/lib/groq-agent";
 import { eventBus } from "@/lib/events";
+import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSeeded();
     const { id } = await params;
     const conversation = await prisma.conversation.findUnique({
       where: { id },
@@ -40,6 +42,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSeeded();
     const { id } = await params;
     const body = await request.json();
     const {

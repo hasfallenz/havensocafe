@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseSeeded();
+
     const body = await request.json().catch(() => ({}));
     const { sessionId, tableNumber = "A1" } = body;
 
