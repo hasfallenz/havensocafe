@@ -598,6 +598,89 @@ export async function processGroqAgentRequest(
     };
   }
 
+  // 8. Developer Inquiry (Who developed / coded this website & AI platform)
+  const isDevInquiry =
+    (lowerCheckMsg.includes("dev") ||
+      lowerCheckMsg.includes("developer") ||
+      lowerCheckMsg.includes("pembuat web") ||
+      lowerCheckMsg.includes("pembuat website") ||
+      lowerCheckMsg.includes("pembuat sistem") ||
+      lowerCheckMsg.includes("programmer") ||
+      lowerCheckMsg.includes("koder") ||
+      lowerCheckMsg.includes("siapa yang buat web") ||
+      lowerCheckMsg.includes("siapa yang bikin web") ||
+      lowerCheckMsg.includes("siapa yang buat") ||
+      lowerCheckMsg.includes("siapa yang bikin") ||
+      lowerCheckMsg.includes("bikin web ini") ||
+      lowerCheckMsg.includes("buat web ini")) &&
+    !lowerCheckMsg.includes("owner") &&
+    !lowerCheckMsg.includes("karyawan") &&
+    !lowerCheckMsg.includes("staff") &&
+    !lowerCheckMsg.includes("pelayan");
+
+  if (isDevInquiry) {
+    return {
+      reply: `Website dan platform Smart Waiter Havenso Cafe ini dikembangkan oleh **NextSantaa** ✨.\n\nAda menu kopi, minuman segar, atau makanan lezat yang ingin kakak pesan hari ini? 😊`,
+      actions: [],
+      intent: "DEVELOPER_INFO",
+    };
+  }
+
+  // 9. Order / Cart Memory Inquiry (Ingatan daftar pesanan aktif)
+  const isCartInquiry =
+    lowerCheckMsg.includes("pesanan saya") ||
+    lowerCheckMsg.includes("pesanan gw") ||
+    lowerCheckMsg.includes("pesanan gue") ||
+    lowerCheckMsg.includes("pesenan saya") ||
+    lowerCheckMsg.includes("pesenan gw") ||
+    lowerCheckMsg.includes("pesenan gue") ||
+    lowerCheckMsg.includes("pesanan tadi") ||
+    lowerCheckMsg.includes("pesenan tadi") ||
+    lowerCheckMsg.includes("tadi pesen apa") ||
+    lowerCheckMsg.includes("tadi pesan apa") ||
+    lowerCheckMsg.includes("tadi pesenan apa") ||
+    lowerCheckMsg.includes("tadi pesanan apa") ||
+    lowerCheckMsg.includes("tadi pesenan saya") ||
+    lowerCheckMsg.includes("tadi pesanan saya") ||
+    lowerCheckMsg.includes("udah pesen apa") ||
+    lowerCheckMsg.includes("udah pesan apa") ||
+    lowerCheckMsg.includes("lihat pesanan") ||
+    lowerCheckMsg.includes("cek pesanan") ||
+    lowerCheckMsg.includes("daftar pesanan") ||
+    lowerCheckMsg.includes("keranjang saya") ||
+    lowerCheckMsg.includes("apa aja yang dipesan");
+
+  if (isCartInquiry) {
+    if (context.currentCartItems && context.currentCartItems.length > 0) {
+      const fullItemsList = context.currentCartItems
+        .map((ci) => {
+          const mi = menuItems.find((m) => m.id === ci.menuItemId);
+          let noteStr = "";
+          try {
+            const cObj = JSON.parse(ci.customizations || "{}");
+            if (cObj.notes) noteStr = ` *(${cObj.notes})*`;
+          } catch (e) {}
+          return `- **${ci.quantity}x ${mi?.name || "Menu"}**${noteStr} — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}`;
+        })
+        .join("\n");
+      const subtotal = context.currentCartItems.reduce((sum, i) => sum + i.subtotal, 0);
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+
+      return {
+        reply: `Tentu kak! Berikut daftar pesanan untuk **Meja ${tableNum}** yang tercatat di sistem saat ini:\n\n${fullItemsList}\n\n🧾 **Total Tagihan: Rp ${total.toLocaleString("id-ID")}** *(termasuk PB1 10%)*\n\nApakah pesanannya sudah sesuai kak, atau mau langsung bayar via QRIS? 😊`,
+        actions: [],
+        intent: "CART_INQUIRY",
+      };
+    } else {
+      return {
+        reply: `Saat ini keranjang pesanan untuk **Meja ${tableNum}** masih kosong nih kak 😊. Kakak mau saya pesankan kopi spesial seperti **Butterscotch Izanagi** atau makanan lezat hari ini?`,
+        actions: [],
+        intent: "CART_INQUIRY",
+      };
+    }
+  }
+
   // 9. Motherly Empathy & Comforting Support (Curhat / Galau / Sedih / Stress)
   const isDistress = DISTRESS_KEYWORDS.some((kw) => lowerCheckMsg.includes(kw));
   if (isDistress && !lowerCheckMsg.includes("pesen") && !lowerCheckMsg.includes("order")) {
@@ -715,6 +798,14 @@ ATURAN UTAMA & PROTOKOL LAYANAN HAVENSO CAFE:
 6. PEMBAYARAN 100% CASHLESS:
    - Havenso Cafe 100% Cashless (QRIS & Kartu Debit via EDC).
    - Tampilkan QRIS resmi saat customer siap checkout.
+
+7. INGATAN PESANAN & STATUS KERANJANG (MANUSIA SUNGGUHAN):
+   - Kamu adalah barista manusia sungguhan yang punya daya ingat tajam dan tidak pernah lupa.
+   - Selalu perhatikan STATUS KERANJANG MEJA di atas. Jika customer bertanya "pesanan saya apa aja?" atau "tadi saya pesen apa?", sebutkan seluruh isi pesanan aktif dengan detail harga dan rasa. Jangan pernah mengaku lupa atau mengatakan keranjang kosong jika ada item yang tercatat!
+
+8. INFORMASI DEVELOPER:
+   - Jika pelanggan bertanya siapa pembuat / developer / programmer platform web dan AI ini, jawab singkat dan jelas: "NextSantaa".
+   - Tetap lindungi identitas pribadi Owner dan Karyawan kafe lainnya sesuai SOP.
 
 DAFTAR KATALOG MENU RESMI & STATUS STOK:
 ${menuCatalogText}
