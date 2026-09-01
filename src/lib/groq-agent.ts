@@ -681,15 +681,6 @@ export async function processGroqAgentRequest(
     }
   }
 
-  // 9. Motherly Empathy & Comforting Support (Curhat / Galau / Sedih / Stress)
-  const isDistress = DISTRESS_KEYWORDS.some((kw) => lowerCheckMsg.includes(kw));
-  if (isDistress && !lowerCheckMsg.includes("pesen") && !lowerCheckMsg.includes("order")) {
-    return {
-      reply: `Duh sayang, tarik napas perlahan ya nak... ❤️ Kalau hari ini terasa berat, sedih, atau melelahkan, kamu sudah hebat banget bisa melewatinya sampai detik ini. Di Havenso Cafe, kamu boleh duduk santai dan istirahat sejenak ya.\n\nBiar hatimu lebih tenang dan hangat, mau saya pesankan secangkir **Chocolate Dark Of The Moon** manis yang pekat atau **Jasmine Tea** hangat yang menenangkan? Apapun yang kamu butuhkan, kami siap temani ya nak 🤗☕`,
-      actions: [],
-      intent: "EMPATHY_COMFORT",
-    };
-  }
 
   // 10. Explicit Quantity Reduction / Set Quantity Modification Check (e.g. "minta 1 aja deh", "saya minta 1 aja deh", "1 aja")
   const isQuantityReductionPattern =
@@ -1059,17 +1050,9 @@ ${menuCatalogText}
         context.paymentVerified;
 
       if (isPaidConfirmation) {
-        if (context.currentCartItems && context.currentCartItems.length > 0) {
-          if (!actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
-            actions.length = 0;
-            actions.push({ type: "CONFIRM_ORDER_PAID" });
-          }
-        } else {
-          return {
-            reply: `Halo kak! Keranjang pesanan untuk Meja **${tableNum}** saat ini masih kosong nih 😊. Silakan sebutkan atau pilih menu minuman segar dan makanan lezat yang ingin dipesan terlebih dahulu ya!`,
-            actions: [],
-            intent: "EMPTY_CART",
-          };
+        if (!actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
+          actions.length = 0;
+          actions.push({ type: "CONFIRM_ORDER_PAID" });
         }
       }
 

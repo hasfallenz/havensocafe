@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, QrCode } from "lucide-react";
+import { CheckCircle2, QrCode, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
@@ -17,6 +17,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   onQuickOrder,
   isAi = false,
 }) => {
+  const [isVerifying, setIsVerifying] = useState(false);
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
   // Parse metadata to check for QRIS or Order Confirmed
@@ -33,20 +34,29 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   const isOrderConfirmed = metaObj?.orderConfirmed;
 
   const handlePayClick = () => {
-    setHasConfirmed(true);
+    setIsVerifying(true);
     if (onConfirmPayment) {
       onConfirmPayment();
     }
   };
 
+  // If QRIS card is shown, filter out redundant template intro text
+  const cleanContent = qrisData
+    ? content
+        .replace(/Siap kak! Ini kode QRIS resmi[\s\S]*?ya! 😊/gi, "")
+        .trim()
+    : content;
+
   return (
     <div className="flex flex-col gap-3 text-xs">
       {/* 1. Main Formatted Text Content */}
-      <div className="flex flex-col gap-2.5 leading-relaxed text-zinc-800">
-        {renderCleanFormattedText(content)}
-      </div>
+      {cleanContent && (
+        <div className="flex flex-col gap-2.5 leading-relaxed text-zinc-800">
+          {renderCleanFormattedText(cleanContent)}
+        </div>
+      )}
 
-      {/* 2. Authentic In-Chat QRIS Card (When QRIS is requested) */}
+      {/* 2. Clean & Pure In-Chat QRIS Card */}
       {qrisData && (
         <div className="mt-2 p-4 rounded-3xl bg-white border border-rose-200/90 shadow-xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200 text-zinc-900">
           {/* Top QRIS Banner */}
@@ -94,7 +104,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
           </div>
 
           {/* Verification / Action Button */}
-          {hasConfirmed ? (
+          {hasConfirmed || isOrderConfirmed ? (
             <div className="w-full py-2.5 px-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black flex items-center justify-center gap-2 animate-in zoom-in-95 duration-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>✅ Pembayaran Terverifikasi! Pesanan Masuk Dapur</span>
@@ -102,17 +112,23 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
           ) : (
             <button
               type="button"
+              disabled={isVerifying}
               onClick={handlePayClick}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>⚡ Verifikasi Pembayaran Otomatis</span>
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Memverifikasi Pembayaran...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verifikasi Pembayaran</span>
+                </>
+              )}
             </button>
           )}
-
-          <span className="text-[9.5px] text-zinc-400 text-center font-medium">
-            Menerima BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay
-          </span>
         </div>
       )}
 

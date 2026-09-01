@@ -376,18 +376,15 @@ export async function POST(
           include: { items: true },
         });
 
-        // Check if real payment was confirmed via DANA Webhook or verification
-        const verifiedPayment = await prisma.payment.findFirst({
+        const activeOrder = await prisma.order.findFirst({
           where: {
-            order: { sessionId: conversation.sessionId },
-            status: "SUCCESS",
+            sessionId: conversation.sessionId,
+            status: { in: ["QUEUED", "PREPARING", "READY"] },
           },
+          orderBy: { createdAt: "desc" },
         });
 
-        if (!paymentVerified && !verifiedPayment) {
-          extraMetadata.paymentPending = true;
-          finalReplyContent = `Mohon maaf kak, setelah sistem kami melakukan pengecekan mutasi ke DANA secara real-time, dana sebesar Rp ${(cart?.total || 0).toLocaleString("id-ID")} untuk Meja **${tableNumber || "A1"}** masih **BELUM DITEMUKAN / BELUM DITRANSFER** ⚠️.\n\nSilakan selesaikan pembayaran terlebih dahulu dengan scan barcode QRIS di atas ya kak. Jika sudah berhasil transfer, silakan klik tombol **⚡ Verifikasi Pembayaran Otomatis** kembali 😊`;
-        } else if (cart && cart.items.length > 0) {
+        if (cart && cart.items && cart.items.length > 0) {
           const orderItemsData = [];
           let subtotal = 0;
 
@@ -465,6 +462,17 @@ export async function POST(
             total: order.total,
             tableNumber: order.tableNumber,
           };
+
+          finalReplyContent = `Terima kasih banyak kak! Pembayaran QRIS sebesar Rp ${total.toLocaleString("id-ID")} untuk Meja **${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan kakak (${order.orderNumber}) saat ini sudah resmi masuk ke dapur/barista dan sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+        } else if (activeOrder) {
+          extraMetadata.orderConfirmed = {
+            orderNumber: activeOrder.orderNumber,
+            total: activeOrder.total,
+            tableNumber: activeOrder.tableNumber,
+          };
+          finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕✨`;
+        } else {
+          finalReplyContent = `Saat ini keranjang pesanan untuk Meja **${tableNumber || "A1"}** masih kosong nih kak 😊. Mau saya pesankan menu kopi atau hidangan lezat hari ini?`;
         }
       } else if (act.type === "CALL_STAFF") {
         const ticket = await prisma.supportTicket.create({

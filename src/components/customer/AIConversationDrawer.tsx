@@ -182,7 +182,7 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                         onConfirmPayment={() =>
                           onSendMessage(
                             "Saya ingin memverifikasi pembayaran QRIS",
-                            false
+                            true
                           )
                         }
                         isAi
