@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("SERVICE_STAFF") // OWNER, MANAGER, SERVICE_STAFF, KITCHEN_STAFF
+  password  String   @default("havenso123")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Table {
+  id          String   @id @default(cuid())
+  tableNumber String   @unique // e.g. A01, A02, B01
+  capacity    Int      @default(4)
+  location    String   @default("Indoor") // Indoor, Outdoor, Terrace, VIP
+  status      String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED
+  qrCode      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CustomerSession {
+  id          String   @id @default(cuid())
+  tableId     String?
+  tableNumber String?
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, CLOSED
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  slug         String     @unique
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
+  items        MenuItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model MenuItem {
+  id                 String     @id @default(cuid())
+  categoryId         String
+  category           Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String     @unique
+  description        String
+  price              Float
+  imageUrl           String
+  isAvailable        Boolean    @default(true)
+  stock              Int        @default(50)
+  preparationTime    Int        @default(5) // in minutes
+  ingredients        String?    // JSON or comma-separated
+  allergens          String?    // JSON or comma-separated
+  recommendationTags String?    // JSON or comma-separated e.g. ["Best Seller", "Chef Pick", "Cold"]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  stock     Float    @default(0)
+  unit      String   @default("pcs") // pcs, kg, liter, shot, gram
+  minStock  Float    @default(10)
+  status    String   @default("AVAILABLE") // AVAILABLE, LOW_STOCK, OUT_OF_STOCK
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  sessionId String     @unique
+  status    String     @default("ACTIVE") // ACTIVE, CHECKED_OUT, ABANDONED
+  subtotal  Float      @default(0)
+  tax       Float      @default(0)
+  discount  Float      @default(0)
+  total     Float      @default(0)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id             String   @id @default(cuid())
+  cartId         String
+  cart           Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId     String
+  quantity       Int      @default(1)
+  customizations String?  // JSON string: { temperature: "iced", sugar: "less", notes: "..." }
+  unitPrice      Float
+  subtotal       Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique // e.g. #HVS-10291
+  sessionId     String
+  tableId       String?
+  tableNumber   String?
+  status        String      @default("QUEUED") // QUEUED, COOKING, READY, COMPLETED, CANCELLED
+  paymentStatus String      @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED, CANCELLED
+  subtotal      Float       @default(0)
+  tax           Float       @default(0)
+  discount      Float       @default(0)
+  total         Float       @default(0)
+  notes         String?
+  items         OrderItem[]
+  payments      Payment[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId     String
+  nameSnapshot   String
+  priceSnapshot  Float
+  quantity       Int      @default(1)
+  customizations String?  // JSON string
+  subtotal       Float
+  createdAt      DateTime @default(now())
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider          String   @default("QRIS") // QRIS, VA_BCA, VA_MANDIRI, CASHIER
+  providerReference String?
+  amount            Float
+  currency          String   @default("IDR")
+  status            String   @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED, CANCELLED
+  metadata          String?  // JSON string
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Conversation {
+  id                   String    @id @default(cuid())
+  sessionId            String    @unique
+  status               String    @default("ACTIVE") // ACTIVE, CLOSED
+  aiStatus             String    @default("ACTIVE") // ACTIVE, PAUSED (when staff takes over)
+  communicationProfile String?   // JSON string
+  messages             Message[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     String       // CUSTOMER, AI, STAFF, SYSTEM
+  content        String
+  metadata       String?      // JSON string for structured actions or badges
+  createdAt      DateTime     @default(now())
+}
+
+model SupportTicket {
+  id               String    @id @default(cuid())
+  conversationId   String?
+  orderId          String?
+  tableId          String?
+  tableNumber      String?
+  type             String    @default("LIVE_CHAT") // LIVE_CHAT, PHYSICAL_ASSISTANCE, PAYMENT_ISSUE, WRONG_ORDER, ALLERGEN, GENERAL
+  priority         String    @default("P2") // P0, P1, P2, P3
+  status           String    @default("WAITING") // WAITING, IN_PROGRESS, RESOLVED
+  assignedUserId   String?
+  assignedUserName String?
+  summary          String
+  metadata         String?   // JSON string
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  resolvedAt       DateTime?
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+}
