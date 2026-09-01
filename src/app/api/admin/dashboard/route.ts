@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
 export async function GET() {
   try {
+    await ensureDatabaseSeeded();
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

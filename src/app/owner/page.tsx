@@ -21,7 +21,21 @@ import {
 } from "lucide-react";
 import { OwnerAICommandBar } from "@/components/owner/OwnerAICommandBar";
 
+const defaultData = {
+  stats: {
+    todayRevenue: 0,
+    todayOrdersCount: 0,
+    activeKitchenCount: 0,
+    pendingSupportCount: 0,
+    menuCount: 20,
+  },
+  recentOrders: [],
+  lowStockItems: [],
+  recentLogs: [],
+};
+
 export default function DedicatedOwnerPage() {
+
   const [data, setData] = useState<{
     stats: {
       todayRevenue: number;
@@ -33,14 +47,16 @@ export default function DedicatedOwnerPage() {
     recentOrders: OrderData[];
     lowStockItems: InventoryItemData[];
     recentLogs: any[];
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  }>(defaultData);
+  const [isLoading, setIsLoading] = useState(false);
 
   const loadData = async () => {
     try {
       const res = await fetch("/api/admin/dashboard");
       const json = await res.json();
-      if (json.success) setData(json.data);
+      if (json.success && json.data) {
+        setData(json.data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -81,7 +97,7 @@ export default function DedicatedOwnerPage() {
     };
   }, []);
 
-  if (isLoading || !data) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-[#07090d] flex flex-col items-center justify-center text-zinc-300 font-sans gap-3">
         <div className="w-10 h-10 rounded-2xl border-2 border-amber-400/20 border-t-amber-400 animate-spin" />
