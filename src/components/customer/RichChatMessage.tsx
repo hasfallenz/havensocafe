@@ -9,6 +9,7 @@ interface RichChatMessageProps {
   onUploadProof?: (base64Image: string) => void;
   onQuickOrder?: (name: string) => void;
   isAi?: boolean;
+  isLoading?: boolean;
 }
 
 export const RichChatMessage: React.FC<RichChatMessageProps> = ({
@@ -18,10 +19,18 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   onUploadProof,
   onQuickOrder,
   isAi = false,
+  isLoading = false,
 }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-reset verifying spinner whenever global loading state finishes
+  React.useEffect(() => {
+    if (!isLoading && isVerifying) {
+      setIsVerifying(false);
+    }
+  }, [isLoading]);
 
   // Parse metadata to check for QRIS or Order Confirmed or Image
   let metaObj: any = null;
@@ -42,6 +51,9 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     if (onConfirmPayment) {
       onConfirmPayment();
     }
+    setTimeout(() => {
+      setIsVerifying(false);
+    }, 4000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,9 +66,13 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
       if (base64 && onUploadProof) {
         setIsVerifying(true);
         onUploadProof(base64);
+        setTimeout(() => {
+          setIsVerifying(false);
+        }, 4000);
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // If QRIS card is shown, filter out redundant template intro text

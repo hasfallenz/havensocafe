@@ -35,7 +35,6 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
   const [input, setInput] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isFirstMountRef = useRef(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isSendingRef = useRef(false);
 
   // Instant scroll to bottom on open (POV directly on newest messages with 0 scroll jump)
@@ -69,35 +68,11 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
     }, 600);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        onSendMessage("Saya sudah bayar via QRIS, ini bukti transfernya 📸", true, base64);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
   return (
     <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in ease-out"
     >
-      {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md h-full glass-pill border-l border-white/80 shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -243,6 +218,7 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                           )
                         }
                         isAi
+                        isLoading={isLoading}
                       />
                     )}
                   </div>
@@ -281,17 +257,6 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
           onSubmit={handleSubmit}
           className="p-3 border-t border-zinc-200/60 bg-white/80 backdrop-blur-md flex items-center gap-2"
         >
-          {/* Proof of Payment Upload Button */}
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => fileInputRef.current?.click()}
-            className="h-9 w-9 rounded-xl bg-zinc-100 hover:bg-sky-50 text-zinc-500 hover:text-sky-600 border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40"
-            title="Kirim Foto / Bukti Transfer QRIS"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
-
           <input
             type="text"
             value={input}
