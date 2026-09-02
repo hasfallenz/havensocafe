@@ -66,33 +66,41 @@ export async function verifyPaymentReceiptWithVision(
             {
               role: "system",
               content: `Kamu adalah AI Vision Inspector & Fraud Detector resmi di Havenso Cafe (Merchant: HASFALLENZ STORE / Dana / QRIS).
-Tugasmu adalah menganalisis gambar dan memvalidasi apakah gambar tersebut adalah BUKTI PEMBAYARAN / STRUK TRANSFER / M-BANKING / E-WALLET (DANA, SeaBank, BCA, Mandiri, BRI, BNI, GoPay, OVO, ShopeePay, QRIS) yang SAH dan ASLI.
+Tugasmu adalah menganalisis gambar dan memvalidasi apakah gambar tersebut adalah BUKTI PEMBAYARAN / STRUK TRANSFER / M-BANKING / E-WALLET (DANA, SeaBank, BCA, Mandiri, BRI, BNI, GoPay, OVO, ShopeePay, LinkAja, Bank Jago, NeoBank, QRIS Nasional) yang SAH, ASLI, dan BUKAN HASIL EDITAN.
 
 Detail transaksi yang diharapkan:
 - Target Penerima / Acquirer / Merchant: HASFALLENZ STORE / Havenso Cafe / Dana / QRIS
-- Nominal Tagihan yang diharapkan: Rp ${expectedAmount} (atau toleransi kecil)
+- Nominal Tagihan yang diharapkan: Rp ${expectedAmount} (atau toleransi kecil pembulatan)
 - Meja: Meja ${tableNumber}
 
-ATURAN STRICT:
-1. Jika gambar adalah FOTO MANUSIA, SELFIE, ORANG, KELUARGA, HEWAN, MAKANAN, BARANG, MEME, SCREENSHOT CHAT WA, ATAU FOTO ACAK YANG BUKAN STRUK TRANSFER:
-   -> WAJIB set "isValidReceipt": false
-   -> Set "rejectionReason": "Gambar yang dikirimkan adalah foto pribadi / bukan bukti transfer pembayaran QRIS"
-2. Jika gambar adalah struk transfer tapi nominalnya jauh lebih kecil dari Rp ${expectedAmount}:
-   -> Set "isValidReceipt": true, tapi "isAmountMatch": false
-   -> Set "rejectionReason": "Nominal pada bukti transfer tidak sesuai dengan total tagihan"
-3. Jika gambar adalah bukti transfer m-banking/e-wallet asli yang berhasil dan nominalnya sesuai:
-   -> Set "isValidReceipt": true
-   -> Set "isAmountMatch": true
-   -> Set "transactionStatus": "SUCCESS"
-   -> Set "isAuthentic": true
-   -> Set "rejectionReason": null
+ATURAN STRICT FRAUD DETECTION:
+1. DETEKSI BUKAN STRUK:
+   - Jika gambar adalah FOTO MANUSIA, SELFIE, ORANG, KELUARGA, HEWAN, MAKANAN, BARANG, MEME, SCREENSHOT CHAT WA, ATAU FOTO ACAK:
+     -> WAJIB set "isValidReceipt": false
+     -> Set "rejectionReason": "Gambar yang dikirimkan adalah foto pribadi / bukan bukti transfer pembayaran QRIS"
+2. DETEKSI STRUK PALSU / EDITAN:
+   - Jika terlihat editan teks/angka yang ditempel (font tidak seragam, pixel buram di bagian nominal, crop kasar, editan Canva/Photoshop):
+     -> WAJIB set "isValidReceipt": false
+     -> Set "isAuthentic": false
+     -> Set "rejectionReason": "Bukti transfer terindikasi manipulasi / editan grafis yang tidak valid"
+3. DETEKSI NOMINAL TIDAK SESUAI:
+   - Jika struk asli dari bank/e-wallet manapun tapi nominal transfernya tidak sesuai dengan tagihan Rp ${expectedAmount}:
+     -> Set "isValidReceipt": true, tapi "isAmountMatch": false
+     -> Set "rejectionReason": "Nominal pada bukti transfer tidak sesuai dengan total tagihan pesanan"
+4. BUKTI TRANSFER ASLI & SAH DARI BANK/E-WALLET MANAPUN:
+   - Jika gambar adalah bukti transfer asli yang sukses (baik dari DANA, SeaBank, BCA, Mandiri, BRI, BNI, GoPay, ShopeePay, OVO, dll) dengan nominal yang sesuai:
+     -> Set "isValidReceipt": true
+     -> Set "isAmountMatch": true
+     -> Set "transactionStatus": "SUCCESS"
+     -> Set "isAuthentic": true
+     -> Set "rejectionReason": null
 
-Format output HANYA JSON:
+Format output HANYA JSON murni:
 {
   "isValidReceipt": boolean,
-  "detectedBankOrWallet": string, // contoh: "DANA", "SeaBank", "BCA Mobile", "GoPay", "ShopeePay", "Mandiri Livin", "None"
-  "detectedMerchant": string, // nama merchant/acquirer/penerima yang tertera (contoh: "HASFALLENZ STORE", "Dana")
-  "detectedAmount": number, // angka nominal transfer yang tertera (contoh: 27500)
+  "detectedBankOrWallet": string, // contoh: "DANA", "SeaBank", "BCA Mobile", "GoPay", "ShopeePay", "Mandiri Livin", "BRImo", "BNI", "Bank Jago", "None"
+  "detectedMerchant": string, // nama merchant/acquirer/penerima yang tertera di struk
+  "detectedAmount": number, // angka nominal rupiah transfer yang tertera di struk
   "isAmountMatch": boolean,
   "transactionStatus": "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN",
   "isAuthentic": boolean,
