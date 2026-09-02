@@ -142,15 +142,33 @@ Format output HANYA JSON murni:
         const jsonStr = jsonMatch ? jsonMatch[0] : content;
         const parsed = JSON.parse(jsonStr);
 
+        let detectedAmountNum: number | undefined = undefined;
+        if (typeof parsed.detectedAmount === "number") {
+          detectedAmountNum = parsed.detectedAmount;
+        } else if (typeof parsed.detectedAmount === "string") {
+          const cleaned = parsed.detectedAmount.replace(/[^0-9]/g, "");
+          detectedAmountNum = cleaned ? parseInt(cleaned, 10) : undefined;
+        }
+
+        // Strict TypeScript exact matching (tolerance strictly <= 100 for tax rounding)
+        let isAmountMatchStrict = false;
+        if (typeof detectedAmountNum === "number" && detectedAmountNum > 0) {
+          isAmountMatchStrict = Math.abs(detectedAmountNum - expectedAmount) <= 100;
+        } else {
+          isAmountMatchStrict = false;
+        }
+
         return {
           isValidReceipt: Boolean(parsed.isValidReceipt),
           detectedBankOrWallet: parsed.detectedBankOrWallet || "E-Wallet / Bank",
           detectedMerchant: parsed.detectedMerchant || "",
-          detectedAmount: typeof parsed.detectedAmount === "number" ? parsed.detectedAmount : undefined,
-          isAmountMatch: Boolean(parsed.isAmountMatch),
+          detectedAmount: detectedAmountNum,
+          isAmountMatch: isAmountMatchStrict,
           transactionStatus: parsed.transactionStatus || "UNKNOWN",
           isAuthentic: Boolean(parsed.isAuthentic ?? parsed.isValidReceipt),
-          rejectionReason: parsed.rejectionReason || null,
+          rejectionReason: !isAmountMatchStrict && detectedAmountNum
+            ? `Nominal transfer tertera Rp ${detectedAmountNum.toLocaleString("id-ID")}, tidak sesuai dengan tagihan Rp ${expectedAmount.toLocaleString("id-ID")}`
+            : parsed.rejectionReason || null,
           rawAnalysis: content,
         };
       } catch (parseErr) {

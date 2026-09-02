@@ -498,12 +498,13 @@ export async function POST(
 
             if (!visionResult.isValidReceipt) {
               // ❌ REJECT: Random photo, selfie, meme, or non-receipt
-              finalReplyContent = `❌ **Bukti Pembayaran Ditolak**\n\nMohon maaf kak, gambar yang kakak kirimkan terdeteksi sebagai **${visionResult.rejectionReason || "foto acak / bukan bukti transfer pembayaran"}** 🙏.\n\nSilakan kirimkan screenshot bukti transfer resmi m-banking atau e-wallet (tertera nominal **Rp ${total.toLocaleString("id-ID")}** ke **HASFALLENZ STORE**) agar pesanan Meja **${tableNumber || "A1"}** bisa kami proses ke dapur ya! 📸`;
-            } else if (!visionResult.isAmountMatch && visionResult.detectedAmount && Math.abs(visionResult.detectedAmount - total) > 5000) {
-              // ❌ REJECT: Wrong nominal
-              finalReplyContent = `❌ **Nominal Pembayaran Tidak Sesuai**\n\nBukti transfer dari **${visionResult.detectedBankOrWallet || "Bank"}** tertera nominal sebesar **Rp ${visionResult.detectedAmount.toLocaleString("id-ID")}**, sedangkan total tagihan Meja **${tableNumber || "A1"}** adalah **Rp ${total.toLocaleString("id-ID")}** 🙏.\n\nMohon periksa kembali bukti transfer yang dikirimkan ya kak!`;
+              finalReplyContent = `❌ **Bukti Pembayaran Ditolak**\n\nMohon maaf kak, gambar yang kakak kirimkan terdeteksi sebagai **${visionResult.rejectionReason || "foto pribadi / bukan bukti transfer pembayaran QRIS"}** 🙏.\n\nSilakan kirimkan screenshot bukti transfer resmi m-banking atau e-wallet (tertera nominal **Rp ${total.toLocaleString("id-ID")}** ke **HASFALLENZ STORE**) agar pesanan Meja **${tableNumber || "A1"}** bisa kami proses ke dapur ya! 📸`;
+            } else if (!visionResult.isAmountMatch) {
+              // ❌ REJECT: Nominal Mismatch (e.g. transfer 27.500 for a 30.800 bill)
+              const detectedNominal = visionResult.detectedAmount || 0;
+              finalReplyContent = `❌ **Nominal Pembayaran Tidak Sesuai**\n\nBukti transfer dari **${visionResult.detectedBankOrWallet || "E-Wallet/Bank"}** tertera sebesar **Rp ${detectedNominal.toLocaleString("id-ID")}**, sedangkan total tagihan Meja **${tableNumber || "A1"}** adalah **Rp ${total.toLocaleString("id-ID")}** 🙏.\n\nMohon transfer atau kirimkan bukti transfer dengan nominal yang sesuai (**Rp ${total.toLocaleString("id-ID")}**) ya kak!`;
             } else {
-              // ✅ ACCEPT: Legitimate payment proof verified!
+              // ✅ ACCEPT: Legitimate payment proof with exact nominal verified!
               const orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
 
               // Create verified order
