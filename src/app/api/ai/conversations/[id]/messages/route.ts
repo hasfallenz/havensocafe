@@ -195,6 +195,7 @@ export async function POST(
         selectedItems,
         currentCartItems: existingCart?.items as any,
         paymentVerified: !!paymentVerified,
+        metadata,
       },
       allMenuItems as any,
       conversation.messages as any

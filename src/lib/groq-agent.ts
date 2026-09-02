@@ -532,6 +532,7 @@ export async function processGroqAgentRequest(
     selectedItems?: MenuItemData[];
     currentCartItems?: CartItemContext[];
     paymentVerified?: boolean;
+    metadata?: any;
   },
   menuItems: (MenuItemData & { category?: { name: string; slug: string } })[],
   messageHistory: MessageHistoryItem[] = []
@@ -1060,21 +1061,24 @@ ${menuCatalogText}
       }
 
       const lowerMsg = userMessage.toLowerCase();
-
-      const isPaidConfirmation =
-        lowerMsg.includes("sudah bayar") ||
-        lowerMsg.includes("udah bayar") ||
-        lowerMsg.includes("sudah transfer") ||
-        lowerMsg.includes("udah transfer") ||
-        lowerMsg.includes("sudah menyelesaikan pembayaran") ||
-        lowerMsg.includes("verifikasi pembayaran") ||
-        context.paymentVerified;
+      const hasProofImage = !!(context.metadata?.imageUrl);
+      const isPaidConfirmation = context.paymentVerified && hasProofImage;
 
       if (isPaidConfirmation) {
         if (!actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
           actions.length = 0;
           actions.push({ type: "CONFIRM_ORDER_PAID" });
         }
+      } else if (
+        (lowerMsg.includes("sudah bayar") ||
+          lowerMsg.includes("udah bayar") ||
+          lowerMsg.includes("sudah transfer") ||
+          lowerMsg.includes("udah transfer") ||
+          lowerMsg.includes("verifikasi pembayaran")) &&
+        !hasProofImage
+      ) {
+        // Customer says they paid but has not uploaded the screenshot proof yet
+        choice.content = `Siap kak! Boleh tolong kirimkan/upload foto screenshot bukti transfernya lewat tombol 📸 di bawah atau di sebelah kolom chat ya kak? Begitu fotonya masuk, pesanan Meja **${tableNum}** langsung kami verifikasi dan teruskan ke dapur! 😊`;
       }
 
       // Additional Intent & Context Handlers
