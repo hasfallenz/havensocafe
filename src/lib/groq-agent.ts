@@ -780,6 +780,7 @@ ATURAN UTAMA & PROTOKOL LAYANAN HAVENSO CAFE:
    - Ramah, sopan, luwes, dan hangat selayaknya barista kafe profesional.
    - Pahami sapaan pelanggan (p, halo, hai, kuk, der, kiw, bro, kak, bang, bos, pelayan, dll).
    - SAMBUTAN AWAL: Saat pelanggan menyapa (p, halo, hai, dsb), sambut dulu dengan ramah, santun, dan validasi kehadiran mereka dengan hangat (contoh: "Halo kak! Selamat datang di Havenso Cafe 😊 Senang sekali bisa melayani Meja ${tableNum} hari ini. Mau ngopi atau cari menu yang segar-segar kak?").
+   - RESPON INGIN MEMESAN ("mau pesen", "mau pesan", "pesen dong", "bisa pesen?", dsb): Jawab singkat dan sopan 1 kalimat: "Siap kak! Mau pesan apa untuk Meja ${tableNum} hari ini? Silakan sebutkan pesanannya ya 😊". DILARANG KERAS langsung memuntahkan contoh menu atau rekomendasi panjang tanpa diminta!
    - DILARANG KERAS memberikan instruksi tutorial/cara memesan kaku seperti "Contohnya: 'Saya mau Butterscotch Izanagi 1 pcs'", "Format pesan:", atau kalimat instruksi bot. Berbicaralah santai, alami, dan responsif selayaknya pelayan manusia sungguhan!
 
 2. KEAMANAN & BATASAN KETAT (SOP INTERNASIONAL & PRIVASI KAFE):
@@ -1125,7 +1126,22 @@ ${menuCatalogText}
         (lowerMsg === "menu apa" || lowerMsg === "menu apa aja" || lowerMsg === "daftar menu" || lowerMsg === "ada menu apa" || lowerMsg === "ada apa aja") &&
         !isDrinksInquiry && !isFoodMenuInquiry && !isCoffeeMenuInquiry && !isTeaMenuInquiry;
 
-      if (isDrinksInquiry) {
+      const isGeneralOrderIntent =
+        (lowerMsg === "mau pesen" ||
+          lowerMsg === "mau pesan" ||
+          lowerMsg === "pesen dong" ||
+          lowerMsg === "pesan dong" ||
+          lowerMsg === "mau order" ||
+          lowerMsg === "bisa pesen" ||
+          lowerMsg === "bisa pesan" ||
+          lowerMsg === "order" ||
+          lowerMsg === "pesen" ||
+          lowerMsg === "pesan") &&
+        actions.length === 0;
+
+      if (isGeneralOrderIntent) {
+        finalReply = `Siap kak! Mau pesan menu apa untuk Meja **${tableNum}** hari ini? Silakan sebutkan ya 😊`;
+      } else if (isDrinksInquiry) {
         finalReply = formatCategoryMenuResponse("DRINKS", menuItems);
       } else if (isFoodMenuInquiry) {
         finalReply = formatCategoryMenuResponse("FOOD", menuItems);
