@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { processGroqAgentRequest } from "@/lib/groq-agent";
+import { verifyPaymentReceiptWithVision } from "@/lib/vision-verifier";
 import { eventBus } from "@/lib/events";
 import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
@@ -456,71 +457,94 @@ export async function POST(
 
           const tax = Math.round(subtotal * 0.1);
           const total = clientCart?.total || subtotal + tax;
-          const orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
 
-          // Create verified order
-          const order = await prisma.order.create({
-            data: {
-              orderNumber,
-              sessionId: conversation.sessionId,
-              tableNumber: tableNumber || "A1",
-              status: "QUEUED",
-              paymentStatus: "SUCCESS",
-              subtotal,
-              tax,
-              discount: 0,
-              total,
-              notes: metadata?.isProofOfPayment ? "Bukti transfer QRIS diverifikasi" : "Dipesan via Havenso AI Waiter",
-              items: {
-                create: orderItemsData,
-              },
-            },
-            include: {
-              items: true,
-            },
-          });
+          // 🛡️ STRICT VISION INSPECTION FOR PAYMENT PROOF
+          const proofImageUrl = metadata?.imageUrl;
 
-          // Create successful payment with optional proof image
-          const payment = await prisma.payment.create({
-            data: {
-              orderId: order.id,
-              provider: "DANA_QRIS",
-              providerReference: `DANA-${Date.now()}`,
-              amount: total,
-              status: "SUCCESS",
-              metadata: metadata?.imageUrl ? JSON.stringify({ imageUrl: metadata.imageUrl }) : null,
-            },
-          });
-
-          // Clear cart
-          if (cart) {
-            await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-            updatedCart = await prisma.cart.update({
-              where: { id: cart.id },
-              data: { subtotal: 0, tax: 0, total: 0 },
-              include: { items: true },
-            });
-          }
-
-          // Broadcast to Kitchen Display!
-          eventBus.broadcast("ORDER_CREATED", {
-            order: {
-              ...order,
-              payments: [payment],
-            },
-          });
-
-          extraMetadata.orderConfirmed = {
-            orderNumber: order.orderNumber,
-            total: order.total,
-            tableNumber: order.tableNumber,
-          };
-
-          const isProof = metadata?.isProofOfPayment || metadata?.imageUrl;
-          if (isProof) {
-            finalReplyContent = `Terima kasih banyak kak! Bukti transfer pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI 📸✨.\n\nPesanan (${order.orderNumber}) sudah kami kirimkan ke dapur/barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          if (!proofImageUrl) {
+            // No image provided
+            finalReplyContent = `Siap kak! Boleh tolong upload/kirimkan foto screenshot bukti transfernya lewat tombol 📸 di bawah atau di samping kolom chat ya kak? Begitu fotonya masuk, pesanan Meja **${tableNumber || "A1"}** langsung kami verifikasi dan proses ke dapur! 😊`;
           } else {
-            finalReplyContent = `Terima kasih banyak kak! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan (${order.orderNumber}) sudah resmi masuk ke antrean dapur/barista dan sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+            // Run Groq Llama 3.2 Vision Model Inspection
+            const visionResult = await verifyPaymentReceiptWithVision(
+              proofImageUrl,
+              total,
+              tableNumber || "A1"
+            );
+
+            if (!visionResult.isValidReceipt) {
+              // ❌ REJECT: Random photo, selfie, meme, or non-receipt
+              finalReplyContent = `❌ **Bukti Pembayaran Ditolak**\n\nMohon maaf kak, gambar yang kakak kirimkan terdeteksi sebagai **${visionResult.rejectionReason || "foto acak / bukan bukti transfer pembayaran"}** 🙏.\n\nSilakan kirimkan screenshot bukti transfer resmi m-banking atau e-wallet (tertera nominal **Rp ${total.toLocaleString("id-ID")}** ke **HASFALLENZ STORE**) agar pesanan Meja **${tableNumber || "A1"}** bisa kami proses ke dapur ya! 📸`;
+            } else if (!visionResult.isAmountMatch && visionResult.detectedAmount && Math.abs(visionResult.detectedAmount - total) > 5000) {
+              // ❌ REJECT: Wrong nominal
+              finalReplyContent = `❌ **Nominal Pembayaran Tidak Sesuai**\n\nBukti transfer dari **${visionResult.detectedBankOrWallet || "Bank"}** tertera nominal sebesar **Rp ${visionResult.detectedAmount.toLocaleString("id-ID")}**, sedangkan total tagihan Meja **${tableNumber || "A1"}** adalah **Rp ${total.toLocaleString("id-ID")}** 🙏.\n\nMohon periksa kembali bukti transfer yang dikirimkan ya kak!`;
+            } else {
+              // ✅ ACCEPT: Legitimate payment proof verified!
+              const orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
+
+              // Create verified order
+              const order = await prisma.order.create({
+                data: {
+                  orderNumber,
+                  sessionId: conversation.sessionId,
+                  tableNumber: tableNumber || "A1",
+                  status: "QUEUED",
+                  paymentStatus: "SUCCESS",
+                  subtotal,
+                  tax,
+                  discount: 0,
+                  total,
+                  notes: `Bukti transfer (${visionResult.detectedBankOrWallet || "QRIS"}) terverifikasi AI Vision`,
+                  items: {
+                    create: orderItemsData,
+                  },
+                },
+                include: {
+                  items: true,
+                },
+              });
+
+              // Create successful payment
+              const payment = await prisma.payment.create({
+                data: {
+                  orderId: order.id,
+                  provider: visionResult.detectedBankOrWallet || "DANA_QRIS",
+                  providerReference: `PROOF-${Date.now()}`,
+                  amount: total,
+                  status: "SUCCESS",
+                  metadata: JSON.stringify({
+                    ...visionResult,
+                    imageUrl: proofImageUrl,
+                  }),
+                },
+              });
+
+              // Clear cart
+              if (cart) {
+                await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+                updatedCart = await prisma.cart.update({
+                  where: { id: cart.id },
+                  data: { subtotal: 0, tax: 0, total: 0 },
+                  include: { items: true },
+                });
+              }
+
+              // Broadcast to Kitchen Display!
+              eventBus.broadcast("ORDER_CREATED", {
+                order: {
+                  ...order,
+                  payments: [payment],
+                },
+              });
+
+              extraMetadata.orderConfirmed = {
+                orderNumber: order.orderNumber,
+                total: order.total,
+                tableNumber: order.tableNumber,
+              };
+
+              finalReplyContent = `Terima kasih banyak kak! Bukti transfer pembayaran QRIS dari **${visionResult.detectedBankOrWallet || "E-Wallet/Bank"}** sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI 📸✨.\n\nPesanan (${order.orderNumber}) sudah kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+            }
           }
         } else if (activeOrder) {
           extraMetadata.orderConfirmed = {
