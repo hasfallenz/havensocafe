@@ -12,7 +12,7 @@ export interface ReceiptVerificationResult {
 
 /**
  * Validates whether an uploaded image is a legitimate payment transfer receipt (M-Banking/E-Wallet/QRIS)
- * using Groq Llama 3.2 Vision Model.
+ * using Groq Vision Multimodal Models (qwen3.8-27b / qwen3.6-27b).
  * Strictly detects and rejects fake images, selfies, random photos, memes, wrong amounts, or fake edits.
  */
 export async function verifyPaymentReceiptWithVision(
@@ -44,9 +44,10 @@ export async function verifyPaymentReceiptWithVision(
     };
   }
 
+  // Active production vision models on Groq
   const visionModels = [
-    "llama-3.2-11b-vision-preview",
-    "llama-3.2-90b-vision-preview",
+    "qwen/qwen3.8-27b",
+    "qwen/qwen3.6-27b",
   ];
 
   for (const model of visionModels) {
@@ -60,23 +61,22 @@ export async function verifyPaymentReceiptWithVision(
         body: JSON.stringify({
           model,
           temperature: 0.1,
-          max_tokens: 500,
-          response_format: { type: "json_object" },
+          max_tokens: 600,
           messages: [
             {
               role: "system",
-              content: `Kamu adalah AI Vision Inspector & Fraud Detector resmi di Havenso Cafe (Merchant: HASFALLENZ STORE).
-Tugasmu adalah menganalisis gambar dan memvalidasi apakah gambar tersebut adalah BUKTI PEMBAYARAN / STRUK TRANSFER / M-BANKING / E-WALLET (SeaBank, BCA, Mandiri, BRI, BNI, DANA, GoPay, OVO, ShopeePay, QRIS) yang SAH dan ASLI.
+              content: `Kamu adalah AI Vision Inspector & Fraud Detector resmi di Havenso Cafe (Merchant: HASFALLENZ STORE / Dana / QRIS).
+Tugasmu adalah menganalisis gambar dan memvalidasi apakah gambar tersebut adalah BUKTI PEMBAYARAN / STRUK TRANSFER / M-BANKING / E-WALLET (DANA, SeaBank, BCA, Mandiri, BRI, BNI, GoPay, OVO, ShopeePay, QRIS) yang SAH dan ASLI.
 
 Detail transaksi yang diharapkan:
-- Target Penerima / Merchant: HASFALLENZ STORE / Havenso Cafe / QRIS
-- Nominal Tagihan yang diharapkan: Rp ${expectedAmount} (atau toleransi pembulatan/biaya admin kecil)
+- Target Penerima / Acquirer / Merchant: HASFALLENZ STORE / Havenso Cafe / Dana / QRIS
+- Nominal Tagihan yang diharapkan: Rp ${expectedAmount} (atau toleransi kecil)
 - Meja: Meja ${tableNumber}
 
 ATURAN STRICT:
 1. Jika gambar adalah FOTO MANUSIA, SELFIE, ORANG, KELUARGA, HEWAN, MAKANAN, BARANG, MEME, SCREENSHOT CHAT WA, ATAU FOTO ACAK YANG BUKAN STRUK TRANSFER:
    -> WAJIB set "isValidReceipt": false
-   -> Set "rejectionReason": "Gambar yang dikirimkan adalah foto pribadi/objek acak, bukan bukti transfer pembayaran QRIS"
+   -> Set "rejectionReason": "Gambar yang dikirimkan adalah foto pribadi / bukan bukti transfer pembayaran QRIS"
 2. Jika gambar adalah struk transfer tapi nominalnya jauh lebih kecil dari Rp ${expectedAmount}:
    -> Set "isValidReceipt": true, tapi "isAmountMatch": false
    -> Set "rejectionReason": "Nominal pada bukti transfer tidak sesuai dengan total tagihan"
@@ -90,9 +90,9 @@ ATURAN STRICT:
 Format output HANYA JSON:
 {
   "isValidReceipt": boolean,
-  "detectedBankOrWallet": string, // contoh: "SeaBank", "BCA Mobile", "DANA", "GoPay", "ShopeePay", "Mandiri Livin", "None"
-  "detectedMerchant": string, // nama merchant/penerima yang tertera
-  "detectedAmount": number, // angka nominal transfer
+  "detectedBankOrWallet": string, // contoh: "DANA", "SeaBank", "BCA Mobile", "GoPay", "ShopeePay", "Mandiri Livin", "None"
+  "detectedMerchant": string, // nama merchant/acquirer/penerima yang tertera (contoh: "HASFALLENZ STORE", "Dana")
+  "detectedAmount": number, // angka nominal transfer yang tertera (contoh: 27500)
   "isAmountMatch": boolean,
   "transactionStatus": "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN",
   "isAuthentic": boolean,
@@ -104,7 +104,7 @@ Format output HANYA JSON:
               content: [
                 {
                   type: "text",
-                  text: `Periksa bukti transfer ini untuk Meja ${tableNumber}. Total tagihan yang harus dibayar adalah Rp ${expectedAmount} ke merchant HASFALLENZ STORE.`,
+                  text: `Periksa bukti transfer ini untuk Meja ${tableNumber}. Total tagihan yang harus dibayar adalah Rp ${expectedAmount} ke merchant HASFALLENZ STORE / Dana.`,
                 },
                 {
                   type: "image_url",
@@ -129,7 +129,11 @@ Format output HANYA JSON:
       if (!content) continue;
 
       try {
-        const parsed = JSON.parse(content);
+        // Extract JSON string even if enclosed in markdown code fences
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : content;
+        const parsed = JSON.parse(jsonStr);
+
         return {
           isValidReceipt: Boolean(parsed.isValidReceipt),
           detectedBankOrWallet: parsed.detectedBankOrWallet || "E-Wallet / Bank",
@@ -137,7 +141,7 @@ Format output HANYA JSON:
           detectedAmount: typeof parsed.detectedAmount === "number" ? parsed.detectedAmount : undefined,
           isAmountMatch: Boolean(parsed.isAmountMatch),
           transactionStatus: parsed.transactionStatus || "UNKNOWN",
-          isAuthentic: Boolean(parsed.isAuthentic),
+          isAuthentic: Boolean(parsed.isAuthentic ?? parsed.isValidReceipt),
           rejectionReason: parsed.rejectionReason || null,
           rawAnalysis: content,
         };
@@ -149,8 +153,7 @@ Format output HANYA JSON:
     }
   }
 
-  // Fallback if vision models could not be reached:
-  // Reject safety by default rather than blindly accepting random pictures
+  // Fallback safety
   return {
     isValidReceipt: false,
     isAmountMatch: false,

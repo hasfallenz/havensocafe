@@ -205,6 +205,11 @@ export async function POST(
     // Execute actions from AI
     let updatedCart = existingCart;
 
+    // If an image is uploaded as proof of payment, guarantee Vision inspection runs
+    if (metadata?.imageUrl && !aiResult.actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
+      aiResult.actions.push({ type: "CONFIRM_ORDER_PAID" });
+    }
+
     let extraMetadata: Record<string, any> = {};
     let finalReplyContent = aiResult.reply;
 
