@@ -52,6 +52,7 @@ export async function POST(
       selectedItems = [],
       metadata,
       paymentVerified,
+      clientCart,
     } = body;
 
     if (!content) {
@@ -145,10 +146,46 @@ export async function POST(
       include: { category: true },
     });
 
-    const existingCart = await prisma.cart.findUnique({
+    let existingCart = await prisma.cart.findUnique({
       where: { sessionId: conversation.sessionId },
       include: { items: true },
     });
+
+    if (!existingCart) {
+      existingCart = await prisma.cart.create({
+        data: {
+          sessionId: conversation.sessionId,
+          status: "ACTIVE",
+        },
+        include: { items: true },
+      });
+    }
+
+    // Sync clientCart into serverless DB if serverless cart is empty
+    if (
+      (!existingCart.items || existingCart.items.length === 0) &&
+      clientCart &&
+      clientCart.items &&
+      clientCart.items.length > 0
+    ) {
+      for (const item of clientCart.items) {
+        const uPrice = item.unitPrice ?? item.price ?? (item.subtotal ? item.subtotal / (item.quantity || 1) : 0);
+        await prisma.cartItem.create({
+          data: {
+            cartId: existingCart.id,
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            unitPrice: uPrice,
+            subtotal: item.subtotal || uPrice * item.quantity,
+            customizations: item.customizations || null,
+          },
+        });
+      }
+      existingCart = await prisma.cart.findUnique({
+        where: { id: existingCart.id },
+        include: { items: true },
+      });
+    }
 
     const aiResult = await processGroqAgentRequest(
       content,

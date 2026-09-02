@@ -380,6 +380,7 @@ function CustomerView() {
             tableNumber: tableNumber || tableParam || "A1",
             selectedItems: selectedForContext,
             paymentVerified,
+            clientCart: cart,
           }),
         }
       );
