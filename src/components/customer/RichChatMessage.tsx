@@ -100,13 +100,13 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
         </div>
       )}
 
-      {/* Uploaded Screenshot Preview in Chat Bubble */}
+      {/* Uploaded Screenshot Preview in Chat Bubble (Natural Default Aspect Ratio) */}
       {imageUrl && (
         <div className="mt-1 rounded-2xl overflow-hidden border border-zinc-200 shadow-md max-w-[260px] bg-white">
           <img
             src={imageUrl}
             alt="Bukti Transfer QRIS"
-            className="w-full max-h-56 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+            className="w-full h-auto object-contain cursor-pointer hover:opacity-95 transition-opacity"
             onClick={() => window.open(imageUrl, "_blank")}
           />
           <div className="py-1.5 px-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between text-[10.5px] text-zinc-600 font-bold">

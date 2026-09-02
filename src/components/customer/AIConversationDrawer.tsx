@@ -185,13 +185,13 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                       </span>
                     )}
 
-                    {/* Render User Uploaded Screenshot */}
+                    {/* Render User Uploaded Screenshot (Natural Default Aspect Ratio) */}
                     {isUser && metaObj?.imageUrl && (
-                      <div className="mb-2 rounded-xl overflow-hidden border border-white/30 shadow-sm max-w-[200px] bg-black/10">
+                      <div className="mb-2 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-[240px] bg-black/10">
                         <img
                           src={metaObj.imageUrl}
                           alt="Bukti Transfer"
-                          className="w-full max-h-40 object-cover cursor-pointer hover:opacity-95"
+                          className="w-full h-auto object-contain cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => window.open(metaObj.imageUrl, "_blank")}
                         />
                       </div>
