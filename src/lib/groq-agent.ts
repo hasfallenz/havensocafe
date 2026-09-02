@@ -1102,73 +1102,23 @@ ${menuCatalogText}
 
       let finalReply = choice.content?.trim();
 
-      // Category inquiries
-      const isDrinksInquiry =
-        (lowerMsg.includes("minuman") || lowerMsg.includes("minum") || lowerMsg.includes("drink")) &&
-        (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("daftar") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
-
-      const isFoodMenuInquiry =
-        (lowerMsg.includes("makanan") || lowerMsg.includes("makan")) &&
-        !isDrinksInquiry &&
-        (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
-
-      const isCoffeeMenuInquiry =
-        (lowerMsg.includes("kopi") || lowerMsg.includes("coffee")) &&
-        !isDrinksInquiry &&
-        (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
-
-      const isTeaMenuInquiry =
-        (lowerMsg.includes("teh") || lowerMsg.includes("tea") || lowerMsg.includes("non-coffee") || lowerMsg.includes("non coffee")) &&
-        !isDrinksInquiry &&
-        (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
-
-      const isAllMenuInquiry =
-        (lowerMsg === "menu apa" || lowerMsg === "menu apa aja" || lowerMsg === "daftar menu" || lowerMsg === "ada menu apa" || lowerMsg === "ada apa aja") &&
-        !isDrinksInquiry && !isFoodMenuInquiry && !isCoffeeMenuInquiry && !isTeaMenuInquiry;
-
-      const isGeneralOrderIntent =
-        (lowerMsg === "mau pesen" ||
-          lowerMsg === "mau pesan" ||
-          lowerMsg === "pesen dong" ||
-          lowerMsg === "pesan dong" ||
-          lowerMsg === "mau order" ||
-          lowerMsg === "bisa pesen" ||
-          lowerMsg === "bisa pesan" ||
-          lowerMsg === "order" ||
-          lowerMsg === "pesen" ||
-          lowerMsg === "pesan") &&
-        actions.length === 0;
-
-      if (isGeneralOrderIntent) {
-        finalReply = `Siap kak! Mau pesan menu apa untuk Meja **${tableNum}** hari ini? Silakan sebutkan ya 😊`;
-      } else if (isDrinksInquiry) {
-        finalReply = formatCategoryMenuResponse("DRINKS", menuItems);
-      } else if (isFoodMenuInquiry) {
-        finalReply = formatCategoryMenuResponse("FOOD", menuItems);
-      } else if (isCoffeeMenuInquiry) {
-        finalReply = formatCategoryMenuResponse("COFFEE", menuItems);
-      } else if (isTeaMenuInquiry) {
-        finalReply = formatCategoryMenuResponse("TEA", menuItems);
-      } else if (isAllMenuInquiry) {
-        finalReply = formatCategoryMenuResponse("ALL", menuItems);
-      } else if (isProceedToPayment) {
-        finalReply = `Siap kak! Pesanan untuk Meja **${tableNum}** langsung kami teruskan ke pembayaran ya ✨.\n\nBerikut kode QRIS resmi Havenso Cafe. Silakan scan atau klik tombol di bawah untuk verifikasi ya! 😊`;
-      }
-
+      // Only fallback if the LLM returned an empty text string alongside its tool call
       if (!finalReply) {
         if (actions.some((a) => a.type === "SHOW_QRIS")) {
-          finalReply = `Siap kak! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan dan klik **✅ Saya Sudah Bayar** setelah transfer berhasil ya! 😊`;
+          finalReply = `Siap kak! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan atau upload bukti transfer ya 😊`;
+        } else if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
+          finalReply = `Terima kasih banyak kak! Pembayaran untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan sudah dikirim ke dapur/barista!`;
         } else if (actions.some((a) => a.type === "ADD_ITEM")) {
           const itemsList = actions
             .filter((a) => a.type === "ADD_ITEM")
             .map((a) => `${a.quantity || 1}x ${a.menuName}`)
             .join(", ");
-          finalReply = `Baik kak, pesanan untuk Meja **${tableNum}** sudah saya perbarui:\n${itemsList}\n\nApakah pesanannya sudah sesuai kak? Atau ada menu lain yang ingin ditambah? 😊`;
+          finalReply = `Baik kak, pesanan ${itemsList} sudah saya catat untuk Meja **${tableNum}** 😊. Mau ada tambahan menu lain kak?`;
         } else if (actions.some((a) => a.type === "CUSTOMIZE_ITEM")) {
           const cust = actions.find((a) => a.type === "CUSTOMIZE_ITEM");
-          finalReply = `Baik kak, pesanan **${cust?.menuName}** sudah saya sesuaikan dengan catatan/jumlah yang diminta ✨.\n\nApakah pesanannya sudah pas? 😊`;
+          finalReply = `Baik kak, pesanan **${cust?.menuName}** sudah saya sesuaikan ya ✨.`;
         } else {
-          finalReply = `Halo kak! Ada yang bisa saya bantu siapkan untuk Meja **${tableNum}** hari ini? 😊`;
+          finalReply = `Halo kak! Ada yang bisa saya bantu untuk Meja **${tableNum}** hari ini? 😊`;
         }
       }
 
