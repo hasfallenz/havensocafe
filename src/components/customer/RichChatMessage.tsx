@@ -186,7 +186,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
               ) : (
                 <>
                   <Camera className="w-4 h-4" />
-                  <span>📸 Upload Bukti Transfer (SS)</span>
+                  <span>Upload Bukti Transfer (SS)</span>
                 </>
               )}
             </button>

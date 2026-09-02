@@ -390,21 +390,40 @@ export async function POST(
           include: { items: true },
         });
 
-        if (cart && cart.items.length > 0) {
-          const itemSummaries = cart.items.map((ci) => {
-            const m = allMenuItems.find((mi) => mi.id === ci.menuItemId);
+        const itemsToProcess =
+          cart && cart.items && cart.items.length > 0
+            ? cart.items
+            : clientCart && clientCart.items && clientCart.items.length > 0
+            ? clientCart.items
+            : [];
+
+        if (itemsToProcess.length > 0) {
+          let calculatedSubtotal = 0;
+          const itemSummaries = itemsToProcess.map((ci: any) => {
+            const m = allMenuItems.find((mi) => mi.id === ci.menuItemId || mi.name.toLowerCase() === (ci.name || "").toLowerCase());
+            const price = m?.price ?? ci.unitPrice ?? ci.price ?? (ci.subtotal ? ci.subtotal / (ci.quantity || 1) : 28000);
+            const qty = ci.quantity || 1;
+            const sub = ci.subtotal || price * qty;
+            calculatedSubtotal += sub;
             return {
-              name: m?.name || "Menu",
-              quantity: ci.quantity,
-              subtotal: ci.subtotal,
+              name: m?.name || ci.name || "Menu",
+              quantity: qty,
+              subtotal: sub,
             };
           });
 
+          if (calculatedSubtotal === 0 && clientCart?.total) {
+            calculatedSubtotal = clientCart.subtotal || Math.round(clientCart.total / 1.1);
+          }
+
+          const calculatedTax = Math.round(calculatedSubtotal * 0.1);
+          const calculatedTotal = (clientCart?.total && clientCart.total > 0) ? clientCart.total : (calculatedSubtotal + calculatedTax);
+
           extraMetadata.qris = {
             show: true,
-            amount: cart.total,
-            subtotal: cart.subtotal,
-            tax: cart.tax,
+            amount: calculatedTotal,
+            subtotal: calculatedSubtotal,
+            tax: calculatedTax,
             items: itemSummaries,
             tableNumber: tableNumber || "A1",
           };
