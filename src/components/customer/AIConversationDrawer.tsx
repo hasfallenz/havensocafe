@@ -4,14 +4,14 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import { MessageData, CartData } from "@/types";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
-import { X, Send, User, Sparkles, CreditCard, ShoppingBag } from "lucide-react";
+import { X, Send, User, Sparkles, CreditCard, ShoppingBag, Camera } from "lucide-react";
 import { RichChatMessage } from "./RichChatMessage";
 
 interface AIConversationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   messages: MessageData[];
-  onSendMessage: (message: string, paymentVerified?: boolean) => void;
+  onSendMessage: (message: string, paymentVerified?: boolean, imageUrl?: string) => void;
   isLoading: boolean;
   tableNumber: string;
   aiStatus: "ACTIVE" | "PAUSED";
@@ -35,6 +35,8 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
   const [input, setInput] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isFirstMountRef = useRef(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSendingRef = useRef(false);
 
   // Instant scroll to bottom on open (POV directly on newest messages with 0 scroll jump)
   useLayoutEffect(() => {
@@ -58,9 +60,28 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isSendingRef.current) return;
+    isSendingRef.current = true;
     onSendMessage(input.trim());
     setInput("");
+    setTimeout(() => {
+      isSendingRef.current = false;
+    }, 600);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        onSendMessage("Saya sudah bayar via QRIS, ini bukti transfernya 📸", true, base64);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   return (
@@ -68,6 +89,15 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
       onClick={onClose}
       className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in ease-out"
     >
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md h-full glass-pill border-l border-white/80 shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -122,6 +152,13 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
             const isStaff = msg.senderType === "STAFF";
             const isSystem = msg.senderType === "SYSTEM";
 
+            let metaObj: any = null;
+            if (msg.metadata) {
+              try {
+                metaObj = typeof msg.metadata === "string" ? JSON.parse(msg.metadata) : msg.metadata;
+              } catch (e) {}
+            }
+
             if (isSystem) {
               return (
                 <div key={msg.id ? `${msg.id}-${idx}` : idx} className="flex justify-center my-1">
@@ -172,6 +209,19 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                         Service Staff
                       </span>
                     )}
+
+                    {/* Render User Uploaded Screenshot */}
+                    {isUser && metaObj?.imageUrl && (
+                      <div className="mb-2 rounded-xl overflow-hidden border border-white/30 shadow-sm max-w-[200px] bg-black/10">
+                        <img
+                          src={metaObj.imageUrl}
+                          alt="Bukti Transfer"
+                          className="w-full max-h-40 object-cover cursor-pointer hover:opacity-95"
+                          onClick={() => window.open(metaObj.imageUrl, "_blank")}
+                        />
+                      </div>
+                    )}
+
                     {isUser || isStaff ? (
                       msg.content
                     ) : (
@@ -183,6 +233,13 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                           onSendMessage(
                             "Saya ingin memverifikasi pembayaran QRIS",
                             true
+                          )
+                        }
+                        onUploadProof={(base64) =>
+                          onSendMessage(
+                            "Saya sudah bayar via QRIS, ini bukti transfernya 📸",
+                            true,
+                            base64
                           )
                         }
                         isAi
@@ -224,6 +281,17 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
           onSubmit={handleSubmit}
           className="p-3 border-t border-zinc-200/60 bg-white/80 backdrop-blur-md flex items-center gap-2"
         >
+          {/* Proof of Payment Upload Button */}
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 w-9 rounded-xl bg-zinc-100 hover:bg-sky-50 text-zinc-500 hover:text-sky-600 border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40"
+            title="Kirim Foto / Bukti Transfer QRIS"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+
           <input
             type="text"
             value={input}

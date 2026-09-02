@@ -421,28 +421,40 @@ export async function POST(
           orderBy: { createdAt: "desc" },
         });
 
-        if (cart && cart.items && cart.items.length > 0) {
+        const itemsToProcess =
+          cart && cart.items && cart.items.length > 0
+            ? cart.items
+            : clientCart && clientCart.items && clientCart.items.length > 0
+            ? clientCart.items
+            : [];
+
+        if (itemsToProcess.length > 0) {
           const orderItemsData = [];
           let subtotal = 0;
 
-          for (const item of cart.items) {
-            const menuItem = allMenuItems.find((m) => m.id === item.menuItemId);
-            if (menuItem) {
-              const itemSubtotal = menuItem.price * item.quantity;
-              subtotal += itemSubtotal;
-              orderItemsData.push({
-                menuItemId: menuItem.id,
-                nameSnapshot: menuItem.name,
-                priceSnapshot: menuItem.price,
-                quantity: item.quantity,
-                customizations: item.customizations,
-                subtotal: itemSubtotal,
-              });
-            }
+          for (const item of itemsToProcess) {
+            const menuItem = allMenuItems.find((m) => m.id === item.menuItemId || m.name.toLowerCase() === (item.name || "").toLowerCase());
+            const itemPrice = menuItem?.price ?? item.unitPrice ?? item.price ?? (item.subtotal ? item.subtotal / (item.quantity || 1) : 28000);
+            const itemQty = item.quantity || 1;
+            const itemSubtotal = item.subtotal || itemPrice * itemQty;
+            subtotal += itemSubtotal;
+
+            orderItemsData.push({
+              menuItemId: menuItem?.id || item.menuItemId || "custom-item",
+              nameSnapshot: menuItem?.name || item.name || "Menu",
+              priceSnapshot: itemPrice,
+              quantity: itemQty,
+              customizations: typeof item.customizations === "string" ? item.customizations : JSON.stringify(item.customizations || {}),
+              subtotal: itemSubtotal,
+            });
+          }
+
+          if (subtotal === 0 && clientCart?.total) {
+            subtotal = clientCart.subtotal || Math.round(clientCart.total / 1.1);
           }
 
           const tax = Math.round(subtotal * 0.1);
-          const total = subtotal + tax;
+          const total = clientCart?.total || subtotal + tax;
           const orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
 
           // Create verified order
@@ -457,7 +469,7 @@ export async function POST(
               tax,
               discount: 0,
               total,
-              notes: "Dipesan via Havenso AI Waiter",
+              notes: metadata?.isProofOfPayment ? "Bukti transfer QRIS diverifikasi" : "Dipesan via Havenso AI Waiter",
               items: {
                 create: orderItemsData,
               },
@@ -467,7 +479,7 @@ export async function POST(
             },
           });
 
-          // Create successful payment
+          // Create successful payment with optional proof image
           const payment = await prisma.payment.create({
             data: {
               orderId: order.id,
@@ -475,16 +487,19 @@ export async function POST(
               providerReference: `DANA-${Date.now()}`,
               amount: total,
               status: "SUCCESS",
+              metadata: metadata?.imageUrl ? JSON.stringify({ imageUrl: metadata.imageUrl }) : null,
             },
           });
 
           // Clear cart
-          await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-          updatedCart = await prisma.cart.update({
-            where: { id: cart.id },
-            data: { subtotal: 0, tax: 0, total: 0 },
-            include: { items: true },
-          });
+          if (cart) {
+            await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+            updatedCart = await prisma.cart.update({
+              where: { id: cart.id },
+              data: { subtotal: 0, tax: 0, total: 0 },
+              include: { items: true },
+            });
+          }
 
           // Broadcast to Kitchen Display!
           eventBus.broadcast("ORDER_CREATED", {
@@ -500,14 +515,19 @@ export async function POST(
             tableNumber: order.tableNumber,
           };
 
-          finalReplyContent = `Terima kasih banyak kak! Pembayaran QRIS sebesar Rp ${total.toLocaleString("id-ID")} untuk Meja **${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan kakak (${order.orderNumber}) saat ini sudah resmi masuk ke dapur/barista dan sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          const isProof = metadata?.isProofOfPayment || metadata?.imageUrl;
+          if (isProof) {
+            finalReplyContent = `Terima kasih banyak kak! Bukti transfer pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI 📸✨.\n\nPesanan (${order.orderNumber}) sudah kami kirimkan ke dapur/barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          } else {
+            finalReplyContent = `Terima kasih banyak kak! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan (${order.orderNumber}) sudah resmi masuk ke antrean dapur/barista dan sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          }
         } else if (activeOrder) {
           extraMetadata.orderConfirmed = {
             orderNumber: activeOrder.orderNumber,
             total: activeOrder.total,
             tableNumber: activeOrder.tableNumber,
           };
-          finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕✨`;
+          finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas sebesar **Rp ${(activeOrder.total || 0).toLocaleString("id-ID")}** dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕✨`;
         } else {
           finalReplyContent = `Saat ini keranjang pesanan untuk Meja **${tableNumber || "A1"}** masih kosong nih kak 😊. Mau saya pesankan menu kopi atau hidangan lezat hari ini?`;
         }

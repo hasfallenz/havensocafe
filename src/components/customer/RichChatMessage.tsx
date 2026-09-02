@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { CheckCircle2, QrCode, Loader2 } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { CheckCircle2, QrCode, Loader2, Camera, Image as ImageIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
   content: string;
   metadata?: string | null;
   onConfirmPayment?: () => void;
+  onUploadProof?: (base64Image: string) => void;
   onQuickOrder?: (name: string) => void;
   isAi?: boolean;
 }
@@ -14,13 +15,15 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   content,
   metadata,
   onConfirmPayment,
+  onUploadProof,
   onQuickOrder,
   isAi = false,
 }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasConfirmed, setHasConfirmed] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Parse metadata to check for QRIS or Order Confirmed
+  // Parse metadata to check for QRIS or Order Confirmed or Image
   let metaObj: any = null;
   if (metadata) {
     try {
@@ -32,12 +35,28 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
 
   const qrisData = metaObj?.qris;
   const isOrderConfirmed = metaObj?.orderConfirmed;
+  const imageUrl = metaObj?.imageUrl;
 
   const handlePayClick = () => {
     setIsVerifying(true);
     if (onConfirmPayment) {
       onConfirmPayment();
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64 && onUploadProof) {
+        setIsVerifying(true);
+        onUploadProof(base64);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // If QRIS card is shown, filter out redundant template intro text
@@ -49,10 +68,37 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
 
   return (
     <div className="flex flex-col gap-3 text-xs">
+      {/* Hidden File Input for Proof Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* 1. Main Formatted Text Content */}
       {cleanContent && (
         <div className="flex flex-col gap-2.5 leading-relaxed text-zinc-800">
           {renderCleanFormattedText(cleanContent)}
+        </div>
+      )}
+
+      {/* Uploaded Screenshot Preview in Chat Bubble */}
+      {imageUrl && (
+        <div className="mt-1 rounded-2xl overflow-hidden border border-zinc-200 shadow-md max-w-[260px] bg-white">
+          <img
+            src={imageUrl}
+            alt="Bukti Transfer QRIS"
+            className="w-full max-h-56 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+            onClick={() => window.open(imageUrl, "_blank")}
+          />
+          <div className="py-1.5 px-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between text-[10.5px] text-zinc-600 font-bold">
+            <span className="flex items-center gap-1.5 text-emerald-700 font-extrabold">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Bukti Transfer QRIS
+            </span>
+          </div>
         </div>
       )}
 
@@ -103,31 +149,45 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
             </span>
           </div>
 
-          {/* Verification / Action Button */}
+          {/* Verification / Action Buttons */}
           {hasConfirmed || isOrderConfirmed ? (
             <div className="w-full py-2.5 px-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black flex items-center justify-center gap-2 animate-in zoom-in-95 duration-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>✅ Pembayaran Terverifikasi! Pesanan Masuk Dapur</span>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={isVerifying}
-              onClick={handlePayClick}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
-            >
-              {isVerifying ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Memverifikasi Pembayaran...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Verifikasi Pembayaran</span>
-                </>
-              )}
-            </button>
+            <div className="w-full flex flex-col gap-2">
+              {/* Button 1: Kirim Bukti Transfer SS */}
+              <button
+                type="button"
+                disabled={isVerifying}
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-extrabold text-xs shadow-md shadow-sky-600/20 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-80"
+              >
+                <Camera className="w-4 h-4" />
+                <span>📸 Kirim Bukti Transfer (SS)</span>
+              </button>
+
+              {/* Button 2: Verifikasi Pembayaran Langsung */}
+              <button
+                type="button"
+                disabled={isVerifying}
+                onClick={handlePayClick}
+                className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Memverifikasi Pembayaran...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Verifikasi Pembayaran</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
       )}

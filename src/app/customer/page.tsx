@@ -311,15 +311,19 @@ function CustomerView() {
     }
   };
 
-  // 9. Send Message to AI Waiter (100% Reliable & Instant Optimistic UI)
-  const handleSendMessage = async (content: string, paymentVerified: boolean = false) => {
-    if (!content.trim()) return;
+  // 9. Send Message to AI Waiter (100% Reliable, Instant Optimistic UI & Proof Attachment)
+  const handleSendMessage = async (
+    content: string,
+    paymentVerified: boolean = false,
+    imageUrl?: string
+  ) => {
+    if (!content.trim() && !imageUrl) return;
 
     // Automatically open the chat drawer when customer sends a message
     setIsConversationOpen(true);
     setIsAiSending(true);
 
-    const userText = content.trim();
+    const userText = content.trim() || "Saya sudah transfer, ini bukti pembayarannya 📸";
 
     // 1. Optimistic User Message Bubble (Instantly visible in 0ms!)
     const tempUserId = `temp-${Date.now()}`;
@@ -328,10 +332,15 @@ function CustomerView() {
       conversationId: conversation?.id || "temp",
       senderType: "CUSTOMER",
       content: userText,
+      metadata: imageUrl ? JSON.stringify({ imageUrl, isProofOfPayment: true }) : null,
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, tempUserMsg]);
+    setMessages((prev) => {
+      // Prevent duplicate bubbles by checking existing IDs
+      if (prev.some((m) => m.id === tempUserId)) return prev;
+      return [...prev, tempUserMsg];
+    });
 
     // 2. Ensure active conversation exists
     let activeConvId = conversation?.id;
@@ -380,6 +389,7 @@ function CustomerView() {
             tableNumber: tableNumber || tableParam || "A1",
             selectedItems: selectedForContext,
             paymentVerified,
+            metadata: imageUrl ? { imageUrl, isProofOfPayment: true } : undefined,
             clientCart: cart,
           }),
         }
@@ -388,13 +398,14 @@ function CustomerView() {
       if (data.success && data.data) {
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== tempUserId);
-          if (data.data.userMessage && !filtered.some((m) => m.id === data.data.userMessage.id)) {
-            filtered.push(data.data.userMessage);
+          const next = [...filtered];
+          if (data.data.userMessage && !next.some((m) => m.id === data.data.userMessage.id)) {
+            next.push(data.data.userMessage);
           }
-          if (data.data.aiMessage && !filtered.some((m) => m.id === data.data.aiMessage.id)) {
-            filtered.push(data.data.aiMessage);
+          if (data.data.aiMessage && !next.some((m) => m.id === data.data.aiMessage.id)) {
+            next.push(data.data.aiMessage);
           }
-          return filtered;
+          return next;
         });
 
         if (data.data.cart) {
@@ -430,7 +441,6 @@ function CustomerView() {
         content: "Halo kak! Pesanan dan pesan kakak sudah kami catat 😊 Ada yang bisa saya bantu siapkan untuk Meja kakak hari ini?",
         createdAt: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
       setIsAiSending(false);
     }
