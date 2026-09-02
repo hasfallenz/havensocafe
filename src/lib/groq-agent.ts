@@ -337,7 +337,7 @@ export function matchMenuItem(
 }
 
 export function formatCategoryMenuResponse(
-  categoryType: "FOOD" | "COFFEE" | "TEA" | "ALL",
+  categoryType: "FOOD" | "COFFEE" | "TEA" | "DRINKS" | "ALL",
   menuItems: (MenuItemData & { category?: { name: string; slug: string } })[]
 ): string {
   const availableItems = menuItems.filter((m) => m.isAvailable && (m.stock === undefined || m.stock > 0));
@@ -396,6 +396,24 @@ export function formatCategoryMenuResponse(
         .join("\n");
       return `Untuk pilihan **Tea & Non-Coffee** segar di Havenso Cafe, kami punya:\n\n${list}\n\nMau saya buatkan minuman segar yang mana kak? 😊`;
     }
+  }
+
+  if (categoryType === "DRINKS") {
+    const drinks = availableItems.filter(
+      (m) =>
+        m.category?.slug !== "food" &&
+        !m.category?.name?.toLowerCase().includes("food") &&
+        !m.category?.name?.toLowerCase().includes("makan")
+    );
+    const drinkCategories = Array.from(new Set(drinks.map((m) => m.category?.name || "Minuman")));
+    const sections = drinkCategories.map((catName) => {
+      const items = drinks.filter((m) => (m.category?.name || "Minuman") === catName);
+      const list = items
+        .map((it) => `- **${it.name}** (Rp ${it.price.toLocaleString("id-ID")}) — ${it.description || "-"}`)
+        .join("\n");
+      return `**${catName}**\n${list}`;
+    });
+    return `Berikut pilihan **Minuman Segar & Kopi Spesial** di Havenso Cafe:\n\n${sections.join("\n\n")}\n\nMau saya pesankan minuman yang mana kak? 😊`;
   }
 
   // ALL categories
@@ -1084,23 +1102,32 @@ ${menuCatalogText}
       let finalReply = choice.content?.trim();
 
       // Category inquiries
+      const isDrinksInquiry =
+        (lowerMsg.includes("minuman") || lowerMsg.includes("minum") || lowerMsg.includes("drink")) &&
+        (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("daftar") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
+
       const isFoodMenuInquiry =
         (lowerMsg.includes("makanan") || lowerMsg.includes("makan")) &&
+        !isDrinksInquiry &&
         (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
 
       const isCoffeeMenuInquiry =
         (lowerMsg.includes("kopi") || lowerMsg.includes("coffee")) &&
+        !isDrinksInquiry &&
         (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
 
       const isTeaMenuInquiry =
         (lowerMsg.includes("teh") || lowerMsg.includes("tea") || lowerMsg.includes("non-coffee") || lowerMsg.includes("non coffee")) &&
+        !isDrinksInquiry &&
         (lowerMsg.includes("ada apa") || lowerMsg.includes("apa aja") || lowerMsg.includes("rekomendasi") || lowerMsg.includes("?"));
 
       const isAllMenuInquiry =
-        (lowerMsg.includes("menu apa") || lowerMsg.includes("ada apa aja") || lowerMsg.includes("daftar menu") || lowerMsg.includes("rekomendasi menu")) &&
-        !isFoodMenuInquiry && !isCoffeeMenuInquiry && !isTeaMenuInquiry;
+        (lowerMsg === "menu apa" || lowerMsg === "menu apa aja" || lowerMsg === "daftar menu" || lowerMsg === "ada menu apa" || lowerMsg === "ada apa aja") &&
+        !isDrinksInquiry && !isFoodMenuInquiry && !isCoffeeMenuInquiry && !isTeaMenuInquiry;
 
-      if (isFoodMenuInquiry) {
+      if (isDrinksInquiry) {
+        finalReply = formatCategoryMenuResponse("DRINKS", menuItems);
+      } else if (isFoodMenuInquiry) {
         finalReply = formatCategoryMenuResponse("FOOD", menuItems);
       } else if (isCoffeeMenuInquiry) {
         finalReply = formatCategoryMenuResponse("COFFEE", menuItems);
@@ -1109,7 +1136,7 @@ ${menuCatalogText}
       } else if (isAllMenuInquiry) {
         finalReply = formatCategoryMenuResponse("ALL", menuItems);
       } else if (isProceedToPayment) {
-        finalReply = `Siap kak! Pesanan untuk Meja **${tableNum}** langsung kami teruskan ke pembayaran ya ✨.\n\nBerikut kode QRIS resmi Havenso Cafe. Silakan scan menggunakan aplikasi pembayaran kakak, lalu klik tombol **✅ Saya Sudah Bayar** di bawah ya! 😊`;
+        finalReply = `Siap kak! Pesanan untuk Meja **${tableNum}** langsung kami teruskan ke pembayaran ya ✨.\n\nBerikut kode QRIS resmi Havenso Cafe. Silakan scan atau klik tombol di bawah untuk verifikasi ya! 😊`;
       }
 
       if (!finalReply) {
