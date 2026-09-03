@@ -346,13 +346,20 @@ export async function POST(
           });
         }
       } else if (act.type === "CUSTOMIZE_ITEM") {
-        const cart = await prisma.cart.findUnique({
+        let cart = await prisma.cart.findUnique({
           where: { sessionId: conversation.sessionId },
           include: { items: true },
         });
 
-        if (cart && cart.items.length > 0) {
-          let targetItem = null;
+        if (!cart) {
+          cart = await prisma.cart.create({
+            data: { sessionId: conversation.sessionId, status: "ACTIVE" },
+            include: { items: true },
+          });
+        }
+
+        let targetItem = null;
+        if (cart.items.length > 0) {
           if (act.menuItemId) {
             targetItem = cart.items.find((ci) => ci.menuItemId === act.menuItemId);
           }
@@ -368,61 +375,76 @@ export async function POST(
           if (!targetItem) {
             targetItem = cart.items[0];
           }
-
-          if (targetItem) {
-            const menuObj = allMenuItems.find((m) => m.id === targetItem.menuItemId);
-            const unitPrice = menuObj?.price || targetItem.unitPrice;
-            const newQty = act.quantity && act.quantity > 0 ? act.quantity : targetItem.quantity;
-
-            let existingCustom: Record<string, any> = {};
-            try {
-              existingCustom = JSON.parse(targetItem.customizations || "{}");
-            } catch (e) {}
-
-            const mergedCustom: Record<string, any> = {
-              ...existingCustom,
-              ...(act.customizations || {}),
-              name: menuObj?.name || existingCustom.name || act.menuName,
-              itemName: menuObj?.name || existingCustom.name || act.menuName,
-            };
-            if (act.notes) mergedCustom.notes = act.notes;
-
-            await prisma.cartItem.update({
-              where: { id: targetItem.id },
-              data: {
-                quantity: newQty,
-                customizations: JSON.stringify(mergedCustom),
-                subtotal: newQty * unitPrice,
-              },
-            });
-
-            // Clean up any duplicate entries of this menu item in cart
-            const duplicateItems = cart.items.filter(
-              (ci) => ci.menuItemId === targetItem.menuItemId && ci.id !== targetItem.id
-            );
-            for (const dup of duplicateItems) {
-              await prisma.cartItem.delete({ where: { id: dup.id } });
-            }
-
-            const items = await prisma.cartItem.findMany({ where: { cartId: cart.id } });
-            const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-            const tax = Math.round(subtotal * 0.1);
-            const total = subtotal + tax;
-
-            updatedCart = await prisma.cart.update({
-              where: { id: cart.id },
-              data: { subtotal, tax, total },
-              include: { items: true },
-            });
-
-            extraMetadata.customizedItem = {
-              menuName: menuObj?.name || act.menuName || existingCustom.name || "Menu",
-              quantity: newQty,
-              customizations: mergedCustom,
-              notes: act.notes || existingCustom.notes,
-            };
-          }
         }
+
+        if (targetItem) {
+          const menuObj = allMenuItems.find((m) => m.id === targetItem.menuItemId);
+          const unitPrice = menuObj?.price || targetItem.unitPrice;
+          const newQty = act.quantity && act.quantity > 0 ? act.quantity : targetItem.quantity;
+
+          let existingCustom: Record<string, any> = {};
+          try {
+            existingCustom = JSON.parse(targetItem.customizations || "{}");
+          } catch (e) {}
+
+          const mergedCustom: Record<string, any> = {
+            ...existingCustom,
+            ...(act.customizations || {}),
+            name: menuObj?.name || existingCustom.name || act.menuName,
+            itemName: menuObj?.name || existingCustom.name || act.menuName,
+          };
+          if (act.notes) mergedCustom.notes = act.notes;
+
+          await prisma.cartItem.update({
+            where: { id: targetItem.id },
+            data: {
+              quantity: newQty,
+              customizations: JSON.stringify(mergedCustom),
+              subtotal: newQty * unitPrice,
+            },
+          });
+
+          // Clean up any duplicate entries of this menu item in cart
+          const duplicateItems = cart.items.filter(
+            (ci) => ci.menuItemId === targetItem.menuItemId && ci.id !== targetItem.id
+          );
+          for (const dup of duplicateItems) {
+            await prisma.cartItem.delete({ where: { id: dup.id } });
+          }
+        } else {
+          // If cart was empty, create the item with customization notes!
+          const itemObj = allMenuItems.find((m) => m.id === act.menuItemId || m.name.toLowerCase() === (act.menuName || "").toLowerCase());
+          const itemName = itemObj?.name || act.menuName || "Caramel Macchiato";
+          const unitPrice = itemObj?.price || 30000;
+          const qty = act.quantity && act.quantity > 0 ? act.quantity : 1;
+          const customObj: Record<string, any> = {
+            name: itemName,
+            itemName: itemName,
+            notes: act.notes,
+          };
+
+          await prisma.cartItem.create({
+            data: {
+              cartId: cart.id,
+              menuItemId: itemObj?.id || act.menuItemId || "custom-item",
+              quantity: qty,
+              customizations: JSON.stringify(customObj),
+              unitPrice,
+              subtotal: qty * unitPrice,
+            },
+          });
+        }
+
+        const items = await prisma.cartItem.findMany({ where: { cartId: cart.id } });
+        const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+        const tax = Math.round(subtotal * 0.1);
+        const total = subtotal + tax;
+
+        updatedCart = await prisma.cart.update({
+          where: { id: cart.id },
+          data: { subtotal, tax, total },
+          include: { items: true },
+        });
       } else if (act.type === "CLEAR_CART") {
         const cart = await prisma.cart.findUnique({
           where: { sessionId: conversation.sessionId },

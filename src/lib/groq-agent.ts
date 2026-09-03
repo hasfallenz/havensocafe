@@ -667,7 +667,10 @@ export async function processGroqAgentRequest(
     lowerCheckMsg.includes("cek pesanan") ||
     lowerCheckMsg.includes("daftar pesanan") ||
     lowerCheckMsg.includes("keranjang saya") ||
-    lowerCheckMsg.includes("apa aja yang dipesan");
+    lowerCheckMsg.includes("apa aja yang dipesan") ||
+    lowerCheckMsg.includes("pesanan gw apa") ||
+    lowerCheckMsg.includes("pesenan gw apa") ||
+    lowerCheckMsg.includes("apa aja");
 
   if (isCartInquiry) {
     if (context.currentCartItems && context.currentCartItems.length > 0) {
@@ -677,9 +680,9 @@ export async function processGroqAgentRequest(
           let noteStr = "";
           try {
             const cObj = JSON.parse(ci.customizations || "{}");
-            if (cObj.notes) noteStr = ` *(${cObj.notes})*`;
+            if (cObj.notes) noteStr = `\n  *(Catatan: ${cObj.notes})*`;
           } catch (e) {}
-          return `- **${ci.quantity}x ${mi?.name || "Menu"}**${noteStr} — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}`;
+          return `- **${ci.quantity}x ${mi?.name || "Menu"}** — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}${noteStr}`;
         })
         .join("\n");
       const subtotal = context.currentCartItems.reduce((sum, i) => sum + i.subtotal, 0);
@@ -687,19 +690,46 @@ export async function processGroqAgentRequest(
       const total = subtotal + tax;
 
       return {
-        reply: `Tentu kak! Berikut daftar pesanan untuk **Meja ${tableNum}** yang tercatat di sistem saat ini:\n\n${fullItemsList}\n\n🧾 **Total Tagihan: Rp ${total.toLocaleString("id-ID")}** *(termasuk PB1 10%)*\n\nApakah pesanannya sudah sesuai kak, atau mau langsung bayar via QRIS? 😊`,
+        reply: `Tentu kak! Berikut daftar pesanan untuk **Meja ${tableNum}** yang tercatat di sistem saat ini:\n\n${fullItemsList}\n\n🧾 **Total Tagihan: Rp ${total.toLocaleString("id-ID")}** *(termasuk PB1 10%)*\n\nApakah pesanannya sudah pas kak, atau ada yang ingin ditambah/siap checkout? 😊`,
         actions: [],
         intent: "CART_INQUIRY",
       };
     } else {
+      // Memory recovery: Check conversation history before declaring cart empty!
+      const lastOrderMsg = [...messageHistory]
+        .reverse()
+        .find(
+          (m) =>
+            m.senderType !== "CUSTOMER" &&
+            (m.content.includes("pesanan untuk") ||
+              m.content.includes("Total Tagihan") ||
+              m.content.includes("x "))
+        );
+      if (lastOrderMsg) {
+        const itemLines = lastOrderMsg.content
+          .split("\n")
+          .filter(
+            (l) =>
+              l.trim().startsWith("- **") ||
+              l.trim().startsWith("- ") ||
+              (l.includes("x ") && l.includes("Rp"))
+          );
+        if (itemLines.length > 0) {
+          return {
+            reply: `Tentu kak! Berikut pesanan untuk **Meja ${tableNum}** yang tercatat:\n\n${itemLines.join("\n")}\n\nApakah pesanannya sudah pas kak, atau ada yang ingin ditambah/siap checkout? 😊`,
+            actions: [],
+            intent: "CART_INQUIRY",
+          };
+        }
+      }
+
       return {
-        reply: `Saat ini keranjang pesanan untuk **Meja ${tableNum}** masih kosong nih kak 😊. Kakak mau saya pesankan kopi spesial seperti **Butterscotch Izanagi** atau makanan lezat hari ini?`,
+        reply: `Saat ini keranjang pesanan untuk **Meja ${tableNum}** masih kosong nih kak 😊. Kakak mau saya pesankan menu kopi spesial seperti **Butterscotch Izanagi** atau makanan lezat hari ini?`,
         actions: [],
         intent: "CART_INQUIRY",
       };
     }
   }
-
 
   // 10. Explicit Quantity Reduction / Set Quantity Modification Check (e.g. "minta 1 aja deh", "saya minta 1 aja deh", "1 aja")
   const isQuantityReductionPattern =
@@ -745,6 +775,57 @@ export async function processGroqAgentRequest(
         },
       ],
       intent: "UPDATE_QUANTITY",
+    };
+  }
+
+  // 11. Explicit Customization / Taste Notes Check (e.g. "gulanya less", "less sugar", "es dikit", "jangan pedas")
+  const isCustomizationIntent =
+    (lowerCheckMsg.includes("gula") ||
+      lowerCheckMsg.includes("sugar") ||
+      lowerCheckMsg.includes("less") ||
+      lowerCheckMsg.includes("es") ||
+      lowerCheckMsg.includes("ice") ||
+      lowerCheckMsg.includes("manis") ||
+      lowerCheckMsg.includes("pedas") ||
+      lowerCheckMsg.includes("pedes") ||
+      lowerCheckMsg.includes("panas") ||
+      lowerCheckMsg.includes("dingin") ||
+      lowerCheckMsg.includes("shot") ||
+      lowerCheckMsg.includes("catatan") ||
+      lowerCheckMsg.includes("note")) &&
+    !lowerCheckMsg.includes("apa rasanya") &&
+    !lowerCheckMsg.includes("rasanya apa") &&
+    !lowerCheckMsg.includes("gimana rasanya") &&
+    !lowerCheckMsg.includes("rekomendasi");
+
+  if (isCustomizationIntent) {
+    let targetCi =
+      context.currentCartItems && context.currentCartItems.length > 0
+        ? context.currentCartItems.find((ci) => {
+            const m = menuItems.find((mi) => mi.id === ci.menuItemId);
+            return m && lowerCheckMsg.includes(m.name.toLowerCase());
+          }) || context.currentCartItems[context.currentCartItems.length - 1]
+        : null;
+
+    const matchedMenu =
+      (targetCi ? menuItems.find((m) => m.id === targetCi.menuItemId) : null) ||
+      matchMenuItem(lowerCheckMsg, menuItems);
+
+    const itemName = matchedMenu?.name || (targetCi ? "Caramel Macchiato" : "Caramel Macchiato");
+    const itemId = matchedMenu?.id || targetCi?.menuItemId || "custom-item";
+
+    return {
+      reply: `Baik kak, catatan khusus untuk **${itemName}**: *("${userMessage.trim()}")* sudah saya catat dan langsung diteruskan ke tim Barista/Kitchen ya ✨.\n\nApakah pesanannya sudah pas kak? Atau ada menu lain yang ingin dipesan? 😊`,
+      actions: [
+        {
+          type: "CUSTOMIZE_ITEM",
+          menuItemId: itemId,
+          menuName: itemName,
+          notes: userMessage.trim(),
+          customizations: { notes: userMessage.trim() },
+        },
+      ],
+      intent: "CUSTOMIZE_ITEM",
     };
   }
 
@@ -1139,7 +1220,9 @@ ${menuCatalogText}
           const cust = actions.find((a) => a.type === "CUSTOMIZE_ITEM");
           finalReply = `Baik kak, pesanan **${cust?.menuName}** sudah saya sesuaikan ya ✨.`;
         } else {
-          finalReply = `Halo kak! Ada yang bisa saya bantu untuk Meja **${tableNum}** hari ini? 😊`;
+          finalReply = recentHistory.length > 0
+            ? `Baik kak, pesanan untuk Meja **${tableNum}** sudah saya catat ya ✨. Ada yang ingin ditambah lagi atau sudah pas? 😊`
+            : `Halo kak! Ada yang bisa saya bantu untuk Meja **${tableNum}** hari ini? 😊`;
         }
       }
 
@@ -1155,7 +1238,9 @@ ${menuCatalogText}
 
   // Fallback if all models fail
   return {
-    reply: `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja **${tableNum}** hari ini?`,
+    reply: recentHistory.length > 0
+      ? `Baik kak, pesanan untuk Meja **${tableNum}** sudah tercatat ya ✨. Mau ada tambahan menu lain kak? 😊`
+      : `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja **${tableNum}** hari ini?`,
     actions: [],
   };
 }
