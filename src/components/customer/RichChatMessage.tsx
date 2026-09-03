@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { CheckCircle2, QrCode, Loader2, Camera, Image as ImageIcon } from "lucide-react";
+import React, { useState } from "react";
+import { CheckCircle2, QrCode, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
@@ -23,7 +23,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
 }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasConfirmed, setHasConfirmed] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-reset verifying spinner whenever global loading state finishes
   React.useEffect(() => {
@@ -56,25 +55,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     }, 4000);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64 && onUploadProof) {
-        setIsVerifying(true);
-        onUploadProof(base64);
-        setTimeout(() => {
-          setIsVerifying(false);
-        }, 4000);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
   // If QRIS card is shown, filter out redundant template intro text
   const cleanContent = qrisData
     ? content
@@ -84,15 +64,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
 
   return (
     <div className="flex flex-col gap-3 text-xs">
-      {/* Hidden File Input for Proof Upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
       {/* 1. Main Formatted Text Content */}
       {cleanContent && (
         <div className="flex flex-col gap-2.5 leading-relaxed text-zinc-800">
@@ -175,18 +146,18 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
             <button
               type="button"
               disabled={isVerifying}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handlePayClick}
               className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-80"
             >
               {isVerifying ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Mengirim & Memverifikasi Bukti...</span>
+                  <span>Memverifikasi Pembayaran...</span>
                 </>
               ) : (
                 <>
-                  <Camera className="w-4 h-4" />
-                  <span>Upload Bukti Transfer (SS)</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Saya Sudah Bayar (Verifikasi)</span>
                 </>
               )}
             </button>
