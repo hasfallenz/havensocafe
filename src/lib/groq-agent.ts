@@ -1061,24 +1061,18 @@ ${menuCatalogText}
       }
 
       const lowerMsg = userMessage.toLowerCase();
-      const hasProofImage = !!(context.metadata?.imageUrl);
-      const isPaidConfirmation = context.paymentVerified && hasProofImage;
+      const isPaidIntent =
+        context.paymentVerified ||
+        lowerMsg.includes("sudah bayar") ||
+        lowerMsg.includes("udah bayar") ||
+        lowerMsg.includes("sudah transfer") ||
+        lowerMsg.includes("udah transfer") ||
+        lowerMsg.includes("verifikasi pembayaran") ||
+        lowerMsg.includes("memverifikasi pembayaran");
 
-      if (isPaidConfirmation) {
-        if (!actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
-          actions.length = 0;
-          actions.push({ type: "CONFIRM_ORDER_PAID" });
-        }
-      } else if (
-        (lowerMsg.includes("sudah bayar") ||
-          lowerMsg.includes("udah bayar") ||
-          lowerMsg.includes("sudah transfer") ||
-          lowerMsg.includes("udah transfer") ||
-          lowerMsg.includes("verifikasi pembayaran")) &&
-        !hasProofImage
-      ) {
-        // Customer says they paid but has not uploaded the screenshot proof yet
-        choice.content = `Siap kak! Boleh tolong kirimkan/upload foto screenshot bukti transfernya lewat tombol 📸 di bawah atau di sebelah kolom chat ya kak? Begitu fotonya masuk, pesanan Meja **${tableNum}** langsung kami verifikasi dan teruskan ke dapur! 😊`;
+      if (isPaidIntent) {
+        actions.length = 0;
+        actions.push({ type: "CONFIRM_ORDER_PAID" });
       }
 
       // Additional Intent & Context Handlers
@@ -1093,9 +1087,15 @@ ${menuCatalogText}
           lowerMsg === "udah sesuai" ||
           lowerMsg === "sudah sesuai" ||
           lowerMsg === "siap bayar" ||
+          lowerMsg === "udah itu aja" ||
+          lowerMsg === "udah itu aja dah" ||
+          lowerMsg === "itu aja" ||
+          lowerMsg === "itu aja dah" ||
           lowerMsg.includes("mau bayar") ||
           lowerMsg.includes("bayar qris") ||
-          lowerMsg.includes("tampilin qris")) &&
+          lowerMsg.includes("tampilin qris") ||
+          lowerMsg.includes("udah itu aja") ||
+          lowerMsg.includes("itu aja")) &&
         context.currentCartItems &&
         context.currentCartItems.length > 0;
 
@@ -1105,6 +1105,10 @@ ${menuCatalogText}
       }
 
       let finalReply = choice.content?.trim();
+
+      if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
+        finalReply = `Terima kasih banyak kak! Pembayaran QRIS untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan resmi diteruskan ke dapur/barista dan saat ini sedang disiapkan! ☕👨‍🍳`;
+      }
 
       // Only fallback if the LLM returned an empty text string alongside its tool call
       if (!finalReply) {
