@@ -1005,9 +1005,10 @@ ${menuCatalogText}
                 : [fnArgs];
 
             for (const it of rawItems) {
+              const nameCandidate = it.menuName || it.name || it.item || it.title || "";
               const targetItem =
-                (it.menuItemId ? menuItems.find((m) => m.id === it.menuItemId) : null) ||
-                matchMenuItem(it.menuName || "", menuItems);
+                (it.menuItemId ? menuItems.find((m) => m.id === it.menuItemId || m.name.toLowerCase() === String(it.menuItemId).toLowerCase()) : null) ||
+                matchMenuItem(nameCandidate || it.menuItemId || "", menuItems);
 
               if (targetItem) {
                 // Stock Check
@@ -1025,18 +1026,30 @@ ${menuCatalogText}
                   menuItemId: targetItem.id,
                   menuName: targetItem.name,
                   quantity: it.quantity || 1,
-                  notes: it.notes,
+                  notes: it.notes || it.customization || it.specialInstructions,
+                  customizations: it.customizations || (it.notes ? { notes: it.notes } : undefined),
+                });
+              } else if (nameCandidate || it.menuItemId) {
+                actions.push({
+                  type: "ADD_ITEM",
+                  menuItemId: "custom-item",
+                  menuName: nameCandidate || it.menuItemId,
+                  quantity: it.quantity || 1,
+                  notes: it.notes || it.customization || it.specialInstructions,
+                  customizations: it.customizations || (it.notes ? { notes: it.notes } : undefined),
                 });
               }
             }
           } else if (fnName === "customize_cart_item") {
-            const targetItem = matchMenuItem(fnArgs.menuName || "", menuItems);
+            const nameCandidate = fnArgs.menuName || fnArgs.name || fnArgs.item || "";
+            const targetItem = matchMenuItem(nameCandidate, menuItems);
             actions.push({
               type: "CUSTOMIZE_ITEM",
               menuItemId: targetItem?.id,
-              menuName: targetItem?.name || fnArgs.menuName,
+              menuName: targetItem?.name || nameCandidate || "Pesanan",
               quantity: fnArgs.quantity,
-              notes: fnArgs.notes,
+              notes: fnArgs.notes || fnArgs.customization || fnArgs.specialInstructions,
+              customizations: fnArgs.customizations || (fnArgs.notes ? { notes: fnArgs.notes } : undefined),
             });
           } else if (fnName === "remove_from_cart") {
             const targetItem = matchMenuItem(fnArgs.menuName || "", menuItems);

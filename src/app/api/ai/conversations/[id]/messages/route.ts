@@ -170,14 +170,29 @@ export async function POST(
     ) {
       for (const item of clientCart.items) {
         const uPrice = item.unitPrice ?? item.price ?? (item.subtotal ? item.subtotal / (item.quantity || 1) : 0);
+        const mItem = allMenuItems.find(
+          (m) =>
+            m.id === item.menuItemId ||
+            m.name.toLowerCase() === (item.name || item.menuItem?.name || "").toLowerCase() ||
+            m.slug.toLowerCase() === (item.menuItemId || "").toLowerCase()
+        );
+        let customObj: Record<string, any> = {};
+        try {
+          customObj = typeof item.customizations === "string" ? JSON.parse(item.customizations) : (item.customizations || {});
+        } catch (e) {
+          customObj = {};
+        }
+        customObj.name = mItem?.name || item.menuItem?.name || item.name || customObj.name;
+        customObj.itemName = customObj.name;
+
         await prisma.cartItem.create({
           data: {
             cartId: existingCart.id,
-            menuItemId: item.menuItemId,
+            menuItemId: mItem?.id || item.menuItemId || "custom-item",
             quantity: item.quantity,
-            unitPrice: uPrice,
-            subtotal: item.subtotal || uPrice * item.quantity,
-            customizations: item.customizations || null,
+            unitPrice: uPrice || mItem?.price || 28000,
+            subtotal: item.subtotal || (uPrice || mItem?.price || 28000) * item.quantity,
+            customizations: JSON.stringify(customObj),
           },
         });
       }
@@ -208,63 +223,87 @@ export async function POST(
     let finalReplyContent = aiResult.reply;
 
     for (const act of aiResult.actions) {
-      if (act.type === "ADD_ITEM" && act.menuItemId) {
-        const itemObj = allMenuItems.find((m) => m.id === act.menuItemId);
-        if (itemObj && itemObj.isAvailable) {
-          let cart = await prisma.cart.findUnique({
-            where: { sessionId: conversation.sessionId },
+      if (act.type === "ADD_ITEM") {
+        const mName = (act.menuName || "").toLowerCase();
+        const itemObj =
+          (act.menuItemId ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
+          (mName ? allMenuItems.find((m) => m.name.toLowerCase() === mName) : null) ||
+          (mName ? allMenuItems.find((m) => m.name.toLowerCase().includes(mName)) : null) ||
+          (act.menuItemId ? allMenuItems.find((m) => m.name.toLowerCase() === String(act.menuItemId).toLowerCase()) : null);
+
+        const itemId = itemObj?.id || act.menuItemId || "custom-item";
+        const itemName = itemObj?.name || act.menuName || "Menu";
+        const itemPrice = itemObj?.price || 28000;
+        const qty = act.quantity || 1;
+
+        let cart = await prisma.cart.findUnique({
+          where: { sessionId: conversation.sessionId },
+        });
+
+        if (!cart) {
+          cart = await prisma.cart.create({
+            data: { sessionId: conversation.sessionId, status: "ACTIVE" },
           });
+        }
 
-          if (!cart) {
-            cart = await prisma.cart.create({
-              data: { sessionId: conversation.sessionId, status: "ACTIVE" },
-            });
-          }
+        const customObj: Record<string, any> = {
+          ...(typeof act.customizations === "object" ? act.customizations : {}),
+          name: itemName,
+          itemName: itemName,
+        };
+        if (act.notes) customObj.notes = act.notes;
 
-          const customStr = act.customizations ? JSON.stringify(act.customizations) : "{}";
-          const qty = act.quantity || 1;
+        const customStr = JSON.stringify(customObj);
 
-          const existingCi = await prisma.cartItem.findFirst({
-            where: {
-              cartId: cart.id,
-              menuItemId: act.menuItemId,
+        const existingCi = await prisma.cartItem.findFirst({
+          where: {
+            cartId: cart.id,
+            menuItemId: itemId,
+          },
+        });
+
+        if (existingCi) {
+          const newQty = existingCi.quantity + qty;
+          await prisma.cartItem.update({
+            where: { id: existingCi.id },
+            data: {
+              quantity: newQty,
               customizations: customStr,
+              subtotal: newQty * itemPrice,
             },
           });
-
-          if (existingCi) {
-            const newQty = existingCi.quantity + qty;
-            await prisma.cartItem.update({
-              where: { id: existingCi.id },
-              data: {
-                quantity: newQty,
-                subtotal: newQty * itemObj.price,
-              },
-            });
-          } else {
-            await prisma.cartItem.create({
-              data: {
-                cartId: cart.id,
-                menuItemId: act.menuItemId,
-                quantity: qty,
-                customizations: customStr,
-                unitPrice: itemObj.price,
-                subtotal: qty * itemObj.price,
-              },
-            });
-          }
-
-          // Recalculate cart totals
-          const items = await prisma.cartItem.findMany({ where: { cartId: cart.id } });
-          const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-          const tax = Math.round(subtotal * 0.1);
-          const total = subtotal + tax;
-
-          updatedCart = await prisma.cart.update({
-            where: { id: cart.id },
-            data: { subtotal, tax, total },
-            include: { items: true },
+        } else {
+          await prisma.cartItem.create({
+            data: {
+              cartId: cart.id,
+              menuItemId: itemId,
+              quantity: qty,
+              customizations: customStr,
+              unitPrice: itemPrice,
+              subtotal: qty * itemPrice,
+            },
           });
+        }
+
+        // Recalculate cart totals
+        const items = await prisma.cartItem.findMany({ where: { cartId: cart.id } });
+        const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+        const tax = Math.round(subtotal * 0.1);
+        const total = subtotal + tax;
+
+        updatedCart = await prisma.cart.update({
+          where: { id: cart.id },
+          data: { subtotal, tax, total },
+          include: { items: true },
+        });
+
+        if (act.notes || (act.customizations && Object.keys(act.customizations).length > 0)) {
+          extraMetadata.customizedItem = {
+            menuName: itemName,
+            quantity: qty,
+            customizations: customObj,
+            notes: act.notes,
+          };
         }
       } else if (act.type === "REMOVE_ITEM") {
         const cart = await prisma.cart.findUnique({
@@ -286,6 +325,9 @@ export async function POST(
             if (matchedMenu) {
               targetItem = cart.items.find((ci) => ci.menuItemId === matchedMenu.id);
             }
+          }
+          if (!targetItem) {
+            targetItem = cart.items[0];
           }
 
           if (targetItem) {
@@ -337,10 +379,13 @@ export async function POST(
               existingCustom = JSON.parse(targetItem.customizations || "{}");
             } catch (e) {}
 
-            const mergedCustom = {
+            const mergedCustom: Record<string, any> = {
               ...existingCustom,
               ...(act.customizations || {}),
+              name: menuObj?.name || existingCustom.name || act.menuName,
+              itemName: menuObj?.name || existingCustom.name || act.menuName,
             };
+            if (act.notes) mergedCustom.notes = act.notes;
 
             await prisma.cartItem.update({
               where: { id: targetItem.id },
@@ -369,6 +414,13 @@ export async function POST(
               data: { subtotal, tax, total },
               include: { items: true },
             });
+
+            extraMetadata.customizedItem = {
+              menuName: menuObj?.name || act.menuName || existingCustom.name || "Menu",
+              quantity: newQty,
+              customizations: mergedCustom,
+              notes: act.notes || existingCustom.notes,
+            };
           }
         }
       } else if (act.type === "CLEAR_CART") {
@@ -399,13 +451,31 @@ export async function POST(
         if (itemsToProcess.length > 0) {
           let calculatedSubtotal = 0;
           const itemSummaries = itemsToProcess.map((ci: any) => {
-            const m = allMenuItems.find((mi) => mi.id === ci.menuItemId || mi.name.toLowerCase() === (ci.name || "").toLowerCase());
+            let customObj: any = {};
+            try {
+              customObj = typeof ci.customizations === "string" ? JSON.parse(ci.customizations || "{}") : (ci.customizations || {});
+            } catch (e) {}
+
+            const m =
+              allMenuItems.find((mi) => mi.id === ci.menuItemId) ||
+              allMenuItems.find((mi) => mi.name.toLowerCase() === (ci.name || ci.menuItem?.name || customObj.name || "").toLowerCase()) ||
+              allMenuItems.find((mi) => mi.slug.toLowerCase() === (ci.menuItemId || "").toLowerCase());
+
+            const resolvedName =
+              m?.name ||
+              ci.menuItem?.name ||
+              ci.name ||
+              customObj.name ||
+              customObj.itemName ||
+              (ci.menuItemId && !ci.menuItemId.startsWith("cm") && !ci.menuItemId.startsWith("item") ? ci.menuItemId : null) ||
+              "Special Order";
+
             const price = m?.price ?? ci.unitPrice ?? ci.price ?? (ci.subtotal ? ci.subtotal / (ci.quantity || 1) : 28000);
             const qty = ci.quantity || 1;
             const sub = ci.subtotal || price * qty;
             calculatedSubtotal += sub;
             return {
-              name: m?.name || ci.name || "Menu",
+              name: resolvedName,
               quantity: qty,
               subtotal: sub,
             };
@@ -453,7 +523,27 @@ export async function POST(
           let subtotal = 0;
 
           for (const item of itemsToProcess) {
-            const menuItem = allMenuItems.find((m) => m.id === item.menuItemId || m.name.toLowerCase() === (item.name || "").toLowerCase());
+            let customObj: any = {};
+            try {
+              customObj = typeof item.customizations === "string" ? JSON.parse(item.customizations || "{}") : (item.customizations || {});
+            } catch (e) {
+              customObj = {};
+            }
+
+            const menuItem =
+              allMenuItems.find((m) => m.id === item.menuItemId) ||
+              allMenuItems.find((m) => m.name.toLowerCase() === (item.name || item.menuItem?.name || customObj.name || "").toLowerCase()) ||
+              allMenuItems.find((m) => m.slug.toLowerCase() === (item.menuItemId || "").toLowerCase());
+
+            const resolvedName =
+              menuItem?.name ||
+              item.menuItem?.name ||
+              item.name ||
+              customObj.name ||
+              customObj.itemName ||
+              (item.menuItemId && !item.menuItemId.startsWith("cm") && !item.menuItemId.startsWith("item") ? item.menuItemId : null) ||
+              "Menu Spesial Havenso";
+
             const itemPrice = menuItem?.price ?? item.unitPrice ?? item.price ?? (item.subtotal ? item.subtotal / (item.quantity || 1) : 28000);
             const itemQty = item.quantity || 1;
             const itemSubtotal = item.subtotal || itemPrice * itemQty;
@@ -461,10 +551,10 @@ export async function POST(
 
             orderItemsData.push({
               menuItemId: menuItem?.id || item.menuItemId || "custom-item",
-              nameSnapshot: menuItem?.name || item.name || "Menu",
+              nameSnapshot: resolvedName,
               priceSnapshot: itemPrice,
               quantity: itemQty,
-              customizations: typeof item.customizations === "string" ? item.customizations : JSON.stringify(item.customizations || {}),
+              customizations: JSON.stringify(customObj),
               subtotal: itemSubtotal,
             });
           }
@@ -577,13 +667,32 @@ export async function POST(
     ) {
       const fullItemsList = updatedCart.items
         .map((ci: any) => {
-          const mi = allMenuItems.find((m) => m.id === ci.menuItemId);
-          let noteStr = "";
+          let cObj: Record<string, any> = {};
           try {
-            const cObj = JSON.parse(ci.customizations || "{}");
-            if (cObj.notes) noteStr = ` *(${cObj.notes})*`;
-          } catch (e) {}
-          return `- **${ci.quantity}x ${mi?.name || "Menu"}**${noteStr} — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}`;
+            cObj = typeof ci.customizations === "string" ? JSON.parse(ci.customizations || "{}") : (ci.customizations || {});
+          } catch (e) {
+            cObj = {};
+          }
+
+          const mi =
+            allMenuItems.find((m) => m.id === ci.menuItemId) ||
+            allMenuItems.find((m) => m.name.toLowerCase() === (cObj.name || ci.name || "").toLowerCase()) ||
+            allMenuItems.find((m) => m.slug.toLowerCase() === (ci.menuItemId || "").toLowerCase());
+
+          const displayName = mi?.name || cObj.name || cObj.itemName || ci.name || "Menu";
+
+          let noteStr = "";
+          if (cObj.notes) {
+            noteStr = ` *(${cObj.notes})*`;
+          } else if (cObj.iceLevel || cObj.sugarLevel || cObj.temperature) {
+            const parts = [];
+            if (cObj.temperature) parts.push(cObj.temperature.toUpperCase());
+            if (cObj.sugarLevel) parts.push(`Sugar: ${cObj.sugarLevel}`);
+            if (cObj.iceLevel && cObj.iceLevel !== "normal") parts.push(`Ice: ${cObj.iceLevel}`);
+            if (parts.length > 0) noteStr = ` *(${parts.join(", ")})*`;
+          }
+
+          return `- **${ci.quantity}x ${displayName}**${noteStr} — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}`;
         })
         .join("\n");
 

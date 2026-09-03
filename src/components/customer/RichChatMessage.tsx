@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, QrCode, Loader2 } from "lucide-react";
+import { CheckCircle2, QrCode, Loader2, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
@@ -31,7 +31,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     }
   }, [isLoading]);
 
-  // Parse metadata to check for QRIS or Order Confirmed or Image
+  // Parse metadata to check for QRIS or Order Confirmed or Image or Customization
   let metaObj: any = null;
   if (metadata) {
     try {
@@ -44,6 +44,34 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   const qrisData = metaObj?.qris;
   const isOrderConfirmed = metaObj?.orderConfirmed;
   const imageUrl = metaObj?.imageUrl;
+  const customizedItem = metaObj?.customizedItem;
+
+  let customDetails: { name: string; qty: number; details: string } | null = null;
+  if (customizedItem) {
+    const parts: string[] = [];
+    if (customizedItem.customizations) {
+      const c =
+        typeof customizedItem.customizations === "string"
+          ? JSON.parse(customizedItem.customizations)
+          : customizedItem.customizations;
+      if (c.temperature) parts.push(c.temperature.toUpperCase());
+      if (c.sugarLevel) parts.push(`Gula: ${c.sugarLevel}`);
+      if (c.iceLevel && c.iceLevel !== "normal") parts.push(`Es: ${c.iceLevel}`);
+      if (c.dairyOption && c.dairyOption !== "regular") parts.push(`Susu: ${c.dairyOption}`);
+      if (c.spicyLevel) parts.push(`Pedas: ${c.spicyLevel}`);
+      if (c.notes) parts.push(`"${c.notes}"`);
+    } else if (customizedItem.notes) {
+      parts.push(`"${customizedItem.notes}"`);
+    }
+
+    if (parts.length > 0 || customizedItem.menuName) {
+      customDetails = {
+        name: customizedItem.menuName || "Menu",
+        qty: customizedItem.quantity || 1,
+        details: parts.length > 0 ? parts.join(" • ") : "Kustomisasi pesanan tercatat",
+      };
+    }
+  }
 
   const handlePayClick = () => {
     setIsVerifying(true);
@@ -68,6 +96,24 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
       {cleanContent && (
         <div className="flex flex-col gap-2.5 leading-relaxed text-zinc-800">
           {renderCleanFormattedText(cleanContent)}
+        </div>
+      )}
+
+      {/* Customization / Special Request Summary Badge Under Agent Response */}
+      {customDetails && (
+        <div className="mt-1 p-2.5 rounded-2xl bg-amber-500/10 border border-amber-400/60 text-amber-950 flex flex-col gap-1 shadow-2xs animate-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between">
+            <span className="font-extrabold text-[11px] text-amber-900 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>{customDetails.qty}x {customDetails.name}</span>
+            </span>
+            <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
+              Kustomisasi Khusus
+            </span>
+          </div>
+          <div className="text-[11px] font-semibold text-zinc-700 pl-5">
+            {customDetails.details}
+          </div>
         </div>
       )}
 
