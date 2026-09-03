@@ -23,7 +23,7 @@ import { PaymentModal } from "@/components/customer/PaymentModal";
 import { OrderStatusDrawer } from "@/components/customer/OrderStatusDrawer";
 import { SupportModal } from "@/components/customer/SupportModal";
 import { Modal } from "@/components/ui/Modal";
-import { MessageSquare, ShoppingBag, Clock, Sparkles, MapPin, Check } from "lucide-react";
+import { MessageSquare, ShoppingBag, Clock, Sparkles, MapPin, Check, ChefHat, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function CustomerView() {
@@ -133,23 +133,92 @@ function CustomerView() {
     loadMenuItems();
   }, [loadMenuItems]);
 
-  // 4. Fetch Active Orders
+  const prevOrderStatusMapRef = React.useRef<Record<string, string>>({});
+
+  const playCustomerChime = useCallback((type: "cooking" | "ready") => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === "ready") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
+        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.24);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.7);
+      } else {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+      }
+    } catch (e) {
+      // Audio autoplay blocked
+    }
+  }, []);
+
+  // 4. Fetch Active Orders with Real-Time Notification Chime
   const loadOrders = useCallback(async () => {
     if (!sessionId) return;
     try {
       const res = await fetch(`/api/orders?sessionId=${sessionId}`);
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
+        // Trigger customer sound alert when kitchen advances status
+        data.data.forEach((o: OrderData) => {
+          const prevStatus = prevOrderStatusMapRef.current[o.id];
+          if (prevStatus && prevStatus !== o.status) {
+            if (o.status === "COOKING") {
+              playCustomerChime("cooking");
+            } else if (o.status === "READY") {
+              playCustomerChime("ready");
+            }
+          }
+          prevOrderStatusMapRef.current[o.id] = o.status;
+        });
+
         setActiveOrders(data.data);
       }
     } catch (err) {
       console.error("Failed to load orders:", err);
     }
-  }, [sessionId]);
+  }, [sessionId, playCustomerChime]);
 
+  // Continuous 2.5-second background polling for rock-solid sync
   useEffect(() => {
-    if (sessionId) loadOrders();
+    if (!sessionId) return;
+    loadOrders();
+    const interval = setInterval(loadOrders, 2500);
+    return () => clearInterval(interval);
   }, [sessionId, loadOrders]);
+
+  // Background polling for AI messages (to catch kitchen notifications in chat)
+  useEffect(() => {
+    if (!conversation?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/ai/conversations/${conversation.id}/messages`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setMessages(json.data);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [conversation?.id]);
 
   // 5. Fetch Active Support Ticket for this Table
   const loadSupportTicket = useCallback(async () => {
@@ -548,6 +617,10 @@ function CustomerView() {
   const cartTotalItems =
     cart?.items.reduce((sum, i) => sum + i.quantity, 0) || 0;
 
+  const latestActiveOrder = activeOrders.find(
+    (o) => o.status === "QUEUED" || o.status === "COOKING" || o.status === "READY"
+  );
+
   return (
     <div className="customer-canvas-bg min-h-screen text-zinc-900 flex flex-col md:flex-row relative">
       {/* Top Mobile Bar */}
@@ -571,7 +644,36 @@ function CustomerView() {
         </div>
 
         <div className="flex items-center gap-2">
-          {activeOrders.length > 0 && (
+          {latestActiveOrder ? (
+            <button
+              onClick={() => setIsOrderStatusOpen(true)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer",
+                latestActiveOrder.status === "COOKING"
+                  ? "bg-amber-500 text-zinc-950 border-amber-400 animate-pulse"
+                  : latestActiveOrder.status === "READY"
+                  ? "bg-emerald-500 text-zinc-950 border-emerald-400 animate-bounce"
+                  : "bg-sky-500 text-white border-sky-400"
+              )}
+            >
+              {latestActiveOrder.status === "COOKING" ? (
+                <>
+                  <ChefHat className="w-3.5 h-3.5" />
+                  <span>Dimasak 🔥</span>
+                </>
+              ) : latestActiveOrder.status === "READY" ? (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Siap Diantar! 🚀</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Antrean</span>
+                </>
+              )}
+            </button>
+          ) : activeOrders.length > 0 && (
             <button
               onClick={() => setIsOrderStatusOpen(true)}
               className="p-2 rounded-xl bg-amber-500/20 text-amber-900 border border-amber-400/40 relative"
@@ -602,6 +704,68 @@ function CustomerView() {
 
       {/* Right Main Content Area */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-36 flex flex-col max-w-7xl w-full">
+        {/* Floating Live Kitchen Tracking Banner for Customer */}
+        {latestActiveOrder && (
+          <div
+            onClick={() => setIsOrderStatusOpen(true)}
+            className={cn(
+              "cursor-pointer mb-6 p-4 rounded-3xl border shadow-xl flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99] backdrop-blur-md",
+              latestActiveOrder.status === "COOKING"
+                ? "bg-amber-500/15 border-amber-400/80 text-amber-950 shadow-amber-500/10"
+                : latestActiveOrder.status === "READY"
+                ? "bg-emerald-500/20 border-emerald-500 text-emerald-950 shadow-emerald-500/15 animate-pulse"
+                : "bg-sky-500/15 border-sky-400/80 text-sky-950 shadow-sky-500/10"
+            )}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-md shrink-0",
+                  latestActiveOrder.status === "COOKING"
+                    ? "bg-amber-600 animate-pulse"
+                    : latestActiveOrder.status === "READY"
+                    ? "bg-emerald-600 animate-bounce"
+                    : "bg-sky-600"
+                )}
+              >
+                {latestActiveOrder.status === "COOKING" ? (
+                  <ChefHat className="w-6 h-6" />
+                ) : latestActiveOrder.status === "READY" ? (
+                  <Sparkles className="w-6 h-6" />
+                ) : (
+                  <Clock className="w-6 h-6" />
+                )}
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-sm sm:text-base">
+                    {latestActiveOrder.status === "COOKING"
+                      ? "👨‍🍳 Pesanan Sedang Dimasak / Diracik di Dapur!"
+                      : latestActiveOrder.status === "READY"
+                      ? "🚀 Pesanan Siap & Sedang Diantar ke Meja Anda!"
+                      : "🕒 Pesanan Diterima Dapur (Antrean Masuk)"}
+                  </span>
+                  <span className="text-[10.5px] font-mono font-black px-2 py-0.5 rounded-full bg-white text-zinc-900 border border-zinc-200 shadow-2xs">
+                    {latestActiveOrder.orderNumber}
+                  </span>
+                </div>
+                <span className="text-xs text-zinc-600 font-semibold mt-0.5">
+                  {latestActiveOrder.status === "COOKING"
+                    ? `Tim barista & koki sedang meracik pesanan Meja ${tableNumber} sekarang.`
+                    : latestActiveOrder.status === "READY"
+                    ? `Makanan/minuman sudah siap dan staf sedang mengantarkannya ke Meja ${tableNumber}!`
+                    : `Pesanan Meja ${tableNumber} sudah masuk ke antrean dapur.`}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs font-black text-sky-800 bg-white/90 px-3.5 py-2 rounded-xl border border-sky-200 shrink-0 shadow-2xs hover:bg-sky-50">
+              <span>Lacak Status</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        )}
+
         {/* Right Menu Content */}
         <MenuGrid
           categoryName={activeCategoryName}
@@ -710,6 +874,8 @@ function CustomerView() {
           }
         }}
         isCheckingOut={isCheckingOut}
+        activeOrder={latestActiveOrder}
+        onOpenOrderStatus={() => setIsOrderStatusOpen(true)}
       />
 
       <SupportModal

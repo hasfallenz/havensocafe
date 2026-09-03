@@ -18,47 +18,115 @@ export default function DedicatedKitchenPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const previousOrdersCountRef = React.useRef<number | null>(null);
+
+  const playChime = useCallback((type: "new_order" | "advance" = "advance") => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === "new_order") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+      } else {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch (e) {
+      // Audio autoplay policy
+    }
+  }, [soundEnabled]);
 
   const loadOrders = useCallback(async () => {
     try {
       const res = await fetch("/api/orders");
       const json = await res.json();
-      if (json.success) {
-        setOrders(json.data);
+      if (json.success && Array.isArray(json.data)) {
+        setOrders((prev) => {
+          // Play sound if a brand new queued order arrived
+          if (
+            previousOrdersCountRef.current !== null &&
+            json.data.length > previousOrdersCountRef.current
+          ) {
+            playChime("new_order");
+          }
+          previousOrdersCountRef.current = json.data.length;
+          return json.data;
+        });
       }
     } catch (e) {
       console.error(e);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [playChime]);
 
   useEffect(() => {
     loadOrders();
 
-    const eventSource = new EventSource("/api/realtime");
-    eventSource.onmessage = (e) => {
-      try {
-        const event: RealtimeEvent = JSON.parse(e.data);
-        if (
-          event.type === "ORDER_CREATED" ||
-          event.type === "KITCHEN_UPDATED" ||
-          event.type === "ORDER_STATUS_CHANGED" ||
-          event.type === "PAYMENT_COMPLETED"
-        ) {
-          loadOrders();
+    // 1. High frequency 2-second background sync for 100% realtime reliability
+    const pollingInterval = setInterval(loadOrders, 2000);
+
+    // 2. Server-Sent Events listener for zero-delay instant push
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource("/api/realtime");
+      eventSource.onmessage = (e) => {
+        try {
+          const event: RealtimeEvent = JSON.parse(e.data);
+          if (
+            event.type === "ORDER_CREATED" ||
+            event.type === "KITCHEN_UPDATED" ||
+            event.type === "ORDER_STATUS_CHANGED" ||
+            event.type === "PAYMENT_COMPLETED"
+          ) {
+            loadOrders();
+          }
+        } catch (err) {
+          // ignore
         }
-      } catch (err) {
-        // ignore
-      }
-    };
+      };
+    } catch (e) {
+      // ignore
+    }
 
     return () => {
-      eventSource.close();
+      clearInterval(pollingInterval);
+      if (eventSource) eventSource.close();
     };
   }, [loadOrders]);
 
+  // 1-Click Instant Status Advance with Optimistic UI
   const handleAdvanceStatus = async (orderId: string, nextStatus: OrderStatus) => {
+    if (updatingOrderId === orderId) return;
+    setUpdatingOrderId(orderId);
+
+    // 1. Audio feedback immediately
+    playChime("advance");
+
+    // 2. Optimistic UI update: instantly moves the card without waiting!
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+    );
+
+    // 3. Network call in background
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
@@ -66,13 +134,15 @@ export default function DedicatedKitchenPage() {
         body: JSON.stringify({ status: nextStatus }),
       });
       const data = await res.json();
-      if (data.success) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
-        );
+      if (!data.success) {
+        // Revert on error
+        loadOrders();
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+      loadOrders();
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -255,8 +325,9 @@ export default function DedicatedKitchenPage() {
                           {order.status === "QUEUED" && (
                             <button
                               type="button"
+                              disabled={updatingOrderId === order.id}
                               onClick={() => handleAdvanceStatus(order.id, "COOKING")}
-                              className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                              className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-98 disabled:opacity-50 text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
                             >
                               <Play className="w-4 h-4 fill-current" />
                               <span>MULAI RACIK / MASAK</span>
@@ -266,8 +337,9 @@ export default function DedicatedKitchenPage() {
                           {order.status === "COOKING" && (
                             <button
                               type="button"
+                              disabled={updatingOrderId === order.id}
                               onClick={() => handleAdvanceStatus(order.id, "READY")}
-                              className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                              className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 disabled:opacity-50 text-zinc-950 text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
                             >
                               <Check className="w-4 h-4 stroke-[3]" />
                               <span>PESANAN SIAP (READY)</span>
@@ -277,8 +349,9 @@ export default function DedicatedKitchenPage() {
                           {order.status === "READY" && (
                             <button
                               type="button"
+                              disabled={updatingOrderId === order.id}
                               onClick={() => handleAdvanceStatus(order.id, "COMPLETED")}
-                              className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                              className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-98 disabled:opacity-50 text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Selesaikan Order</span>

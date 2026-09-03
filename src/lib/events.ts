@@ -29,11 +29,9 @@ class RealtimeEventBus {
   }
 }
 
-// Global singleton for Next.js dev server hot reload
+// Global singleton for Next.js and Node.js environments
 const globalForEvents = globalThis as unknown as { eventBus: RealtimeEventBus };
 
 export const eventBus = globalForEvents.eventBus || new RealtimeEventBus();
+globalForEvents.eventBus = eventBus;
 
-if (process.env.NODE_ENV !== "production") {
-  globalForEvents.eventBus = eventBus;
-}

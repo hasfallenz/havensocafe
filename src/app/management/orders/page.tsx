@@ -34,25 +34,36 @@ export default function OrdersManagementPage() {
   useEffect(() => {
     loadOrders();
 
-    // Setup real-time SSE listener
-    const es = new EventSource("/api/realtime");
-    es.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (
-          payload.event === "ORDER_CREATED" ||
-          payload.event === "ORDER_STATUS_CHANGED" ||
-          payload.event === "PAYMENT_COMPLETED"
-        ) {
-          loadOrders();
+    // 1. High frequency 2.5s background polling for 100% real-time reliability
+    const interval = setInterval(loadOrders, 2500);
+
+    // 2. Setup real-time SSE listener
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/realtime");
+      es.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          const evtType = payload.type || payload.event;
+          if (
+            evtType === "ORDER_CREATED" ||
+            evtType === "ORDER_STATUS_CHANGED" ||
+            evtType === "KITCHEN_UPDATED" ||
+            evtType === "PAYMENT_COMPLETED"
+          ) {
+            loadOrders();
+          }
+        } catch (err) {
+          console.error("SSE parse error in orders page:", err);
         }
-      } catch (err) {
-        console.error("SSE parse error in orders page:", err);
-      }
-    };
+      };
+    } catch (e) {
+      // ignore
+    }
 
     return () => {
-      es.close();
+      clearInterval(interval);
+      if (es) es.close();
     };
   }, [selectedStatus]);
 

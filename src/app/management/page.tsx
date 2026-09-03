@@ -47,6 +47,8 @@ export default function ManagementDashboardPage() {
 
   useEffect(() => {
     loadDashboard();
+    const interval = setInterval(loadDashboard, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   if (isLoading || !data) {

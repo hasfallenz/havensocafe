@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
-import { MessageData, CartData } from "@/types";
+import { MessageData, CartData, OrderData } from "@/types";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
 import { X, Send, User, Sparkles, CreditCard, ShoppingBag, Camera } from "lucide-react";
 import { RichChatMessage } from "./RichChatMessage";
@@ -18,6 +18,8 @@ interface AIConversationDrawerProps {
   cart?: CartData | null;
   onOpenPayment?: () => void;
   isCheckingOut?: boolean;
+  activeOrder?: OrderData | null;
+  onOpenOrderStatus?: () => void;
 }
 
 export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
@@ -31,6 +33,8 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
   cart,
   onOpenPayment,
   isCheckingOut = false,
+  activeOrder,
+  onOpenOrderStatus,
 }) => {
   const [input, setInput] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +112,44 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Live Active Order Status Tracker inside AI Drawer */}
+        {activeOrder && (activeOrder.status === "QUEUED" || activeOrder.status === "COOKING" || activeOrder.status === "READY") && (
+          <div
+            onClick={onOpenOrderStatus}
+            className={cn(
+              "px-4 py-2.5 border-b flex items-center justify-between text-xs font-bold cursor-pointer transition-all hover:opacity-95 shadow-2xs",
+              activeOrder.status === "COOKING"
+                ? "bg-amber-500/15 border-amber-300 text-amber-950"
+                : activeOrder.status === "READY"
+                ? "bg-emerald-500/20 border-emerald-300 text-emerald-950 animate-pulse"
+                : "bg-sky-500/15 border-sky-300 text-sky-950"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  activeOrder.status === "COOKING" ? "bg-amber-500" : activeOrder.status === "READY" ? "bg-emerald-500" : "bg-sky-500"
+                )} />
+                <span className={cn(
+                  "relative inline-flex rounded-full h-2.5 w-2.5",
+                  activeOrder.status === "COOKING" ? "bg-amber-600" : activeOrder.status === "READY" ? "bg-emerald-600" : "bg-sky-600"
+                )} />
+              </span>
+              <span>
+                {activeOrder.status === "COOKING"
+                  ? "Status Dapur: Sedang Dimasak / Diracik 👨‍🍳🔥"
+                  : activeOrder.status === "READY"
+                  ? "Status Dapur: Pesanan Siap & Sedang Diantar! 🚀☕"
+                  : "Status Dapur: Pesanan Masuk Antrean 🕒"}
+              </span>
+            </div>
+            <span className="text-[10.5px] font-mono font-black text-zinc-600 bg-white/80 px-2 py-0.5 rounded-md border border-zinc-200">
+              {activeOrder.orderNumber}
+            </span>
+          </div>
+        )}
 
         {/* Messages Body */}
         <div
