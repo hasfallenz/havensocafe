@@ -137,14 +137,28 @@ export const SLANG_ALIASES: Record<string, string> = {
   mie: "Ramen",
 };
 
-// Slang Greetings List
+// Slang & Salutations Greetings List
 export const SLANG_GREETINGS = [
-  "hai", "halo", "helo", "hello", "der", "kuk", "kiw", "bro", "kak", "kakak", "bang", "mas",
-  "mba", "mbak", "dek", "om", "tante", "bos", "boss", "pelayan", "karyawan", "oi", "oit",
-  "p", "pe", "woi", "woy", "assalamualaikum", "assalamu'alaikum", "assalamu alaikum",
-  "waalaikumsalam", "wa'alaikumsalam", "pagi", "siang", "sore", "malam", "tuan",
-  "permisi", "min", "admin", "punten", "sampurasun"
+  "hai", "halo", "helo", "hello", "hey", "hy", "der", "kuk", "kiw", "bro", "kak", "kakak",
+  "bang", "abang", "mas", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
+  "om", "tante", "bos", "boss", "pelayan", "karyawan", "staff", "waiter", "barista", "min", "admin",
+  "oi", "oit", "woi", "woy", "p", "pe", "ping", "tuan", "permisi", "punten", "sampurasun", "spada",
+  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "waalaikumsalam", "wa'alaikumsalam",
+  "pagi", "siang", "sore", "malam", "selamat", "tes", "test", "testing", "cek", "check"
 ];
+
+export const TEST_WORDS = new Set([
+  "tes", "test", "testing", "ping", "p", "pe", "cek", "check", "nyoba", "nyobain", "coba", "123", "tes123", "test123"
+]);
+
+export const SALUTATION_WORDS = new Set([
+  "hai", "halo", "helo", "hello", "hey", "hy", "der", "kuk", "kiw", "bro", "kak", "kakak",
+  "bang", "abang", "mas", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
+  "om", "tante", "bos", "boss", "pelayan", "karyawan", "staff", "waiter", "barista", "min", "admin",
+  "oi", "oit", "woi", "woy", "tuan", "permisi", "punten", "sampurasun", "spada",
+  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "waalaikumsalam", "wa'alaikumsalam",
+  "pagi", "siang", "sore", "malam", "selamat"
+]);
 
 // Empathy / Distress / Curhat Keywords
 export const DISTRESS_KEYWORDS = [
@@ -231,15 +245,17 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 const INDONESIAN_STOPWORDS = new Set([
-  "kiw", "der", "bro", "kak", "kakak", "bang", "mas", "mba", "mbak", "min", "admin",
-  "mau", "pesen", "pesan", "order", "beli", "dong", "ya", "nih", "deh", "kan", "lah",
-  "halo", "hai", "hei", "pagi", "siang", "sore", "malam", "permisi", "nanya", "tanya",
+  "kiw", "der", "bro", "kak", "kakak", "bang", "abang", "mas", "mba", "mbak", "min", "admin",
+  "dek", "adek", "ade", "kids", "kidz", "bocil", "om", "tante", "bos", "boss", "pelayan", "staff", "waiter", "barista", "tuan",
+  "mau", "pesen", "pesan", "order", "beli", "dong", "ya", "nih", "deh", "kan", "lah", "sih", "cuy", "gaes", "guys",
+  "halo", "hai", "helo", "hello", "hey", "hy", "oi", "oit", "woi", "woy", "p", "pe", "ping", "pagi", "siang", "sore", "malam",
+  "permisi", "punten", "sampurasun", "spada", "assalamualaikum", "waalaikumsalam", "nanya", "tanya",
   "apa", "aja", "ada", "saja", "tolong", "bisa", "minta", "saya", "aku", "gw", "gue",
   "lu", "kamu", "dia", "mereka", "kita", "kami", "lagi", "terus", "trus", "dan", "sama",
-  "atau", "buat", "untuk", "meja", "sini", "situ", "sih", "jir", "cuy", "gaes",
-  "guys", "yok", "yuk", "kuy", "rekomen", "rekomendasi", "enak", "mantap", "minum",
-  "makan", "makanan", "minuman", "nyobain", "coba", "test", "tes", "tuh", "itu", "yang",
-  "kek", "gmn", "gimana"
+  "atau", "buat", "untuk", "meja", "sini", "situ", "jir", "yok", "yuk", "kuy",
+  "rekomen", "rekomendasi", "enak", "mantap", "minum", "makan", "makanan", "minuman",
+  "nyobain", "coba", "test", "tes", "testing", "cek", "check", "tuh", "itu", "yang",
+  "kek", "gmn", "gimana", "doang"
 ]);
 
 export function matchMenuItem(
@@ -604,34 +620,199 @@ export async function processGroqAgentRequest(
     };
   }
 
-  // 7. Special Islamic Greeting Check (Assalamualaikum)
+  // 7. Special Test / Ping System Greeting Check (tes, test, ping, p, pe, cek, tes 123)
+  const cleanTokens = lowerCheckMsg
+    .replace(/[^\w\s]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const isTestGreeting =
+    cleanTokens.length > 0 &&
+    cleanTokens.every((token) => TEST_WORDS.has(token) || token === "123" || token === "doang" || token === "aja" || token === "cuma" || token === "hanya");
+
+  if (isTestGreeting) {
+    return {
+      reply: `Halo kak! Sistem Havenso AI aktif dan siap melayani Meja **${tableNum}** dengan sepenuh hati 😊. Ada menu kopi pilihan, minuman segar, atau makanan lezat yang ingin kakak pesan hari ini?`,
+      actions: [],
+      intent: "TEST_GREETING",
+    };
+  }
+
+  // 8. Special Islamic Greeting Check (Assalamualaikum)
   if (
     lowerCheckMsg.includes("assalamualaikum") ||
     lowerCheckMsg.includes("assalamu'alaikum") ||
     lowerCheckMsg.includes("assalamu alaikum")
   ) {
     return {
-      reply: `Waalaikumsalam kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja **${tableNum}** hari ini? Silakan sebutkan menu favorit yang kakak inginkan ya!`,
+      reply: `Waalaikumsalam kak! Selamat datang di Havenso Cafe 😊 Senang sekali bisa melayani Meja **${tableNum}** hari ini. Ada menu kopi favorit, minuman segar, atau makanan lezat yang ingin kakak pesan?`,
       actions: [],
       intent: "GREETING",
     };
   }
 
-  // 8. Developer Inquiry (Who developed / coded this website & AI platform)
+  // 9. Salutations / Casual Greetings Check (bang, kak, dek, kids, mas, mba, bro, pelayan, halo, hai, oi, permisi, dll)
+  const isPureGreetingOrSalutation =
+    cleanTokens.length > 0 &&
+    cleanTokens.every(
+      (token) =>
+        SALUTATION_WORDS.has(token) ||
+        TEST_WORDS.has(token) ||
+        INDONESIAN_STOPWORDS.has(token)
+    ) &&
+    !cleanTokens.some((t) => ["pesen", "pesan", "order", "beli", "checkout", "bayar", "menu", "kopi", "makan", "minum"].includes(t)) &&
+    matchMenuItem(lowerCheckMsg, menuItems) === null;
+
+  if (isPureGreetingOrSalutation) {
+    return {
+      reply: `Halo kak! Selamat datang di Havenso Cafe 😊 Senang sekali bisa melayani Meja **${tableNum}** hari ini. Ada yang bisa saya bantu atau ada menu kopi dan makanan lezat yang ingin kakak pesan?`,
+      actions: [],
+      intent: "GREETING",
+    };
+  }
+
+  // 10. General Order Intent ("mau pesen", "mo pesen", "mw pesen", "pengen pesan", "pesen dong", "bisa pesen?", "mau order", "mo order", etc.)
+  const orderPhraseRegex = /^(halo\s+|hai\s+|p\s+|pe\s+|bang\s+|kak\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+)?(mau|mo|mw|pengen|pingin|ingin|bisa|tolong|mari)?\s*(pesen|pesan|order|beli)(\s+dong|\s+ya|\s+kak|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+ngga|\s+bisa|\s+dulu)?$/i;
+
+  const isGeneralOrderIntent =
+    (orderPhraseRegex.test(lowerCheckMsg) ||
+      lowerCheckMsg === "mo pesen" ||
+      lowerCheckMsg === "mo pesan" ||
+      lowerCheckMsg === "mw pesen" ||
+      lowerCheckMsg === "mw pesan" ||
+      lowerCheckMsg === "mau pesen" ||
+      lowerCheckMsg === "mau pesan" ||
+      lowerCheckMsg === "pesen dong" ||
+      lowerCheckMsg === "pesan dong" ||
+      lowerCheckMsg === "bisa pesen" ||
+      lowerCheckMsg === "bisa pesan" ||
+      lowerCheckMsg === "mau order" ||
+      lowerCheckMsg === "mo order" ||
+      lowerCheckMsg === "order dong" ||
+      lowerCheckMsg === "bisa order") &&
+    matchMenuItem(lowerCheckMsg, menuItems) === null;
+
+  if (isGeneralOrderIntent) {
+    return {
+      reply: `Siap kak! Mau pesan menu apa untuk Meja **${tableNum}** hari ini? Silakan sebutkan nama menu kopi atau makanan yang ingin dipesan ya 😊`,
+      actions: [],
+      intent: "ORDER_INQUIRY",
+    };
+  }
+
+  // 11. Menu Catalog Inquiries
+  const isAllMenuInquiry =
+    lowerCheckMsg === "menu" ||
+    lowerCheckMsg === "daftar menu" ||
+    lowerCheckMsg === "lihat menu" ||
+    lowerCheckMsg === "ada menu apa" ||
+    lowerCheckMsg === "ada menu apa aja" ||
+    lowerCheckMsg === "pilihan menu" ||
+    lowerCheckMsg === "buku menu" ||
+    lowerCheckMsg === "menu apa aja" ||
+    lowerCheckMsg === "ada apa aja";
+
+  if (isAllMenuInquiry) {
+    return {
+      reply: formatCategoryMenuResponse("ALL", menuItems),
+      actions: [],
+      intent: "MENU_INQUIRY",
+    };
+  }
+
+  const isFoodMenuInquiry =
+    lowerCheckMsg.includes("menu makanan") ||
+    lowerCheckMsg.includes("makanan apa aja") ||
+    lowerCheckMsg.includes("ada makanan apa") ||
+    lowerCheckMsg.includes("pilihan makanan") ||
+    lowerCheckMsg === "makanan";
+
+  if (isFoodMenuInquiry) {
+    return {
+      reply: formatCategoryMenuResponse("FOOD", menuItems),
+      actions: [],
+      intent: "MENU_INQUIRY",
+    };
+  }
+
+  const isCoffeeMenuInquiry =
+    lowerCheckMsg.includes("menu kopi") ||
+    lowerCheckMsg.includes("kopi apa aja") ||
+    lowerCheckMsg.includes("ada kopi apa") ||
+    lowerCheckMsg.includes("pilihan kopi") ||
+    lowerCheckMsg === "kopi";
+
+  if (isCoffeeMenuInquiry) {
+    return {
+      reply: formatCategoryMenuResponse("COFFEE", menuItems),
+      actions: [],
+      intent: "MENU_INQUIRY",
+    };
+  }
+
+  const isTeaOrDrinksMenuInquiry =
+    lowerCheckMsg.includes("menu non coffee") ||
+    lowerCheckMsg.includes("menu non-coffee") ||
+    lowerCheckMsg.includes("menu teh") ||
+    lowerCheckMsg.includes("menu tea") ||
+    lowerCheckMsg.includes("teh apa aja") ||
+    lowerCheckMsg.includes("ada minuman apa") ||
+    lowerCheckMsg.includes("menu minuman");
+
+  if (isTeaOrDrinksMenuInquiry) {
+    return {
+      reply: formatCategoryMenuResponse("TEA", menuItems),
+      actions: [],
+      intent: "MENU_INQUIRY",
+    };
+  }
+
+  // 12. Recommendations / Best Seller Inquiry
+  const isRecommendationInquiry =
+    (lowerCheckMsg.includes("rekomen") ||
+      lowerCheckMsg.includes("rekomendasi") ||
+      lowerCheckMsg.includes("best seller") ||
+      lowerCheckMsg.includes("paling enak") ||
+      lowerCheckMsg.includes("menu andalan") ||
+      lowerCheckMsg.includes("yang enak apa") ||
+      lowerCheckMsg.includes("signature")) &&
+    !lowerCheckMsg.includes("cafe di") &&
+    !lowerCheckMsg.includes("kafe di") &&
+    !lowerCheckMsg.includes("tempat");
+
+  if (isRecommendationInquiry) {
+    const signatureHighlights = [
+      "- **Butterscotch Izanagi** (Rp 28.000) — *Signature Kopi Creamy dengan butterscotch legit*",
+      "- **Chocolate Dark Of The Moon** (Rp 28.000) — *Minuman cokelat pekat premium khas Havenso*",
+      "- **Beef Bowl + Rice** (Rp 32.000) — *Nasi daging sapi lezat gurih dengan bumbu spesial*",
+      "- **Chicken Popcorn Garlic Parmesan + Rice** (Rp 30.000) — *Ayam renyah berpadu keju parmesan gurih*",
+      "- **Caramel Macchiato** (Rp 30.000) — *Espresso berpadu susu lembut dan saus karamel lezat*"
+    ];
+
+    return {
+      reply: `Berikut beberapa menu **Best Seller & Signature Favorit** di Havenso Cafe yang paling banyak disukai kak:\n\n${signatureHighlights.join("\n")}\n\nAda yang ingin kakak pesan untuk Meja **${tableNum}**? 😊`,
+      actions: [],
+      intent: "RECOMMENDATION",
+    };
+  }
+
+  // 13. Empathy / Distress / Curhat Support
+  const isDistress = DISTRESS_KEYWORDS.some((kw) => {
+    const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    return regex.test(lowerCheckMsg);
+  });
+  if (isDistress) {
+    return {
+      reply: `Semangat ya kak! Luangkan waktu sejenak untuk santai di Havenso Cafe 🌿 Suasana Meja **${tableNum}** siap menemani waktu santai kakak.\n\nMau saya buatkan minuman manis yang menenangkan seperti **Butterscotch Izanagi** atau **Chocolate Dark Of The Moon** untuk naikin mood kakak hari ini? 😊`,
+      actions: [],
+      intent: "EMPATHY",
+    };
+  }
+
+  // 14. Developer Inquiry (Who developed / coded this website & AI platform)
   const isDevInquiry =
-    (lowerCheckMsg.includes("dev") ||
-      lowerCheckMsg.includes("developer") ||
-      lowerCheckMsg.includes("pembuat web") ||
-      lowerCheckMsg.includes("pembuat website") ||
-      lowerCheckMsg.includes("pembuat sistem") ||
-      lowerCheckMsg.includes("programmer") ||
-      lowerCheckMsg.includes("koder") ||
-      lowerCheckMsg.includes("siapa yang buat web") ||
-      lowerCheckMsg.includes("siapa yang bikin web") ||
-      lowerCheckMsg.includes("siapa yang buat") ||
-      lowerCheckMsg.includes("siapa yang bikin") ||
-      lowerCheckMsg.includes("bikin web ini") ||
-      lowerCheckMsg.includes("buat web ini")) &&
+    /\b(developer|programmer|koder|pembuat web|pembuat website|pembuat sistem|bikin web|buat web)\b/i.test(lowerCheckMsg) &&
     !lowerCheckMsg.includes("owner") &&
     !lowerCheckMsg.includes("karyawan") &&
     !lowerCheckMsg.includes("staff") &&
@@ -645,7 +826,7 @@ export async function processGroqAgentRequest(
     };
   }
 
-  // 9. Order / Cart Memory Inquiry (Ingatan daftar pesanan aktif)
+  // 15. Order / Cart Memory Inquiry (Ingatan daftar pesanan aktif)
   const isCartInquiry =
     lowerCheckMsg.includes("pesanan saya") ||
     lowerCheckMsg.includes("pesanan gw") ||
@@ -670,7 +851,9 @@ export async function processGroqAgentRequest(
     lowerCheckMsg.includes("apa aja yang dipesan") ||
     lowerCheckMsg.includes("pesanan gw apa") ||
     lowerCheckMsg.includes("pesenan gw apa") ||
-    lowerCheckMsg.includes("apa aja");
+    lowerCheckMsg.includes("pesanan apa aja") ||
+    lowerCheckMsg.includes("pesenan apa aja") ||
+    lowerCheckMsg.includes("isi keranjang");
 
   if (isCartInquiry) {
     if (context.currentCartItems && context.currentCartItems.length > 0) {
@@ -731,7 +914,7 @@ export async function processGroqAgentRequest(
     }
   }
 
-  // 10. Explicit Quantity Reduction / Set Quantity Modification Check (e.g. "minta 1 aja deh", "saya minta 1 aja deh", "1 aja")
+  // 16. Explicit Quantity Reduction / Set Quantity Modification Check (e.g. "minta 1 aja deh", "saya minta 1 aja deh", "1 aja")
   const isQuantityReductionPattern =
     (lowerCheckMsg.includes("minta 1 aja") ||
       lowerCheckMsg.includes("1 aja deh") ||
@@ -778,55 +961,60 @@ export async function processGroqAgentRequest(
     };
   }
 
-  // 11. Explicit Customization / Taste Notes Check (e.g. "gulanya less", "less sugar", "es dikit", "jangan pedas")
+  // 17. Explicit Customization / Taste Notes Check (e.g. "gulanya less", "less sugar", "es dikit", "jangan pedas")
+  const customKeywordsRegex = /\b(gula|sugar|less sugar|no sugar|extra sugar|less ice|no ice|extra ice|es batu|es dikit|banyak es|panas|hot|dingin|iced|pedas|pedes|manis|extra shot|double shot|single shot|catatan|note)\b/i;
+  const isCustomizationWord = customKeywordsRegex.test(lowerCheckMsg);
+
   const isCustomizationIntent =
-    (lowerCheckMsg.includes("gula") ||
-      lowerCheckMsg.includes("sugar") ||
-      lowerCheckMsg.includes("less") ||
-      lowerCheckMsg.includes("es") ||
-      lowerCheckMsg.includes("ice") ||
-      lowerCheckMsg.includes("manis") ||
-      lowerCheckMsg.includes("pedas") ||
-      lowerCheckMsg.includes("pedes") ||
-      lowerCheckMsg.includes("panas") ||
-      lowerCheckMsg.includes("dingin") ||
-      lowerCheckMsg.includes("shot") ||
-      lowerCheckMsg.includes("catatan") ||
-      lowerCheckMsg.includes("note")) &&
+    isCustomizationWord &&
     !lowerCheckMsg.includes("apa rasanya") &&
     !lowerCheckMsg.includes("rasanya apa") &&
     !lowerCheckMsg.includes("gimana rasanya") &&
     !lowerCheckMsg.includes("rekomendasi");
 
   if (isCustomizationIntent) {
-    let targetCi =
-      context.currentCartItems && context.currentCartItems.length > 0
-        ? context.currentCartItems.find((ci) => {
-            const m = menuItems.find((mi) => mi.id === ci.menuItemId);
-            return m && lowerCheckMsg.includes(m.name.toLowerCase());
-          }) || context.currentCartItems[context.currentCartItems.length - 1]
-        : null;
+    const hasCartItems = context.currentCartItems && context.currentCartItems.length > 0;
+    const explicitMenuMatch = matchMenuItem(lowerCheckMsg, menuItems);
 
-    const matchedMenu =
-      (targetCi ? menuItems.find((m) => m.id === targetCi.menuItemId) : null) ||
-      matchMenuItem(lowerCheckMsg, menuItems);
+    if (hasCartItems || explicitMenuMatch) {
+      let targetCi =
+        hasCartItems
+          ? context.currentCartItems!.find((ci) => {
+              const m = menuItems.find((mi) => mi.id === ci.menuItemId);
+              return m && lowerCheckMsg.includes(m.name.toLowerCase());
+            }) || context.currentCartItems![context.currentCartItems!.length - 1]
+          : null;
 
-    const itemName = matchedMenu?.name || (targetCi ? "Caramel Macchiato" : "Caramel Macchiato");
-    const itemId = matchedMenu?.id || targetCi?.menuItemId || "custom-item";
+      const matchedMenu =
+        (targetCi ? menuItems.find((m) => m.id === targetCi.menuItemId) : null) ||
+        explicitMenuMatch;
 
-    return {
-      reply: `Baik kak, catatan khusus untuk **${itemName}**: *("${userMessage.trim()}")* sudah saya catat dan langsung diteruskan ke tim Barista/Kitchen ya ✨.\n\nApakah pesanannya sudah pas kak? Atau ada menu lain yang ingin dipesan? 😊`,
-      actions: [
-        {
-          type: "CUSTOMIZE_ITEM",
-          menuItemId: itemId,
-          menuName: itemName,
-          notes: userMessage.trim(),
-          customizations: { notes: userMessage.trim() },
-        },
-      ],
-      intent: "CUSTOMIZE_ITEM",
-    };
+      if (matchedMenu) {
+        const itemName = matchedMenu.name;
+        const itemId = matchedMenu.id;
+
+        return {
+          reply: `Baik kak, catatan khusus untuk **${itemName}**: *("${userMessage.trim()}")* sudah saya catat dan langsung diteruskan ke tim Barista/Kitchen ya ✨.\n\nApakah pesanannya sudah pas kak? Atau ada menu lain yang ingin dipesan? 😊`,
+          actions: [
+            {
+              type: "CUSTOMIZE_ITEM",
+              menuItemId: itemId,
+              menuName: itemName,
+              notes: userMessage.trim(),
+              customizations: { notes: userMessage.trim() },
+            },
+          ],
+          intent: "CUSTOMIZE_ITEM",
+        };
+      }
+    } else {
+      // Cart is empty and no menu matched in user's message
+      return {
+        reply: `Baik kak, catatan *("${userMessage.trim()}")* ingin diterapkan untuk menu yang mana? Silakan sebutkan nama menu kopi atau hidangan yang ingin kakak pesan ya 😊`,
+        actions: [],
+        intent: "CUSTOMIZE_INQUIRY",
+      };
+    }
   }
 
   const apiKey = process.env.GROQ_API_KEY || "";
@@ -860,9 +1048,9 @@ ATURAN UTAMA & PROTOKOL LAYANAN HAVENSO CAFE:
 ================================================================================
 1. IDENTITAS & GAYA KOMUNIKASI ALAMI (BARISTA MANUSIA ASLI):
    - Ramah, sopan, luwes, dan hangat selayaknya barista kafe profesional.
-   - Pahami sapaan pelanggan (p, halo, hai, kuk, der, kiw, bro, kak, bang, bos, pelayan, dll).
-   - SAMBUTAN AWAL: Saat pelanggan menyapa (p, halo, hai, dsb), sambut dulu dengan ramah, santun, dan validasi kehadiran mereka dengan hangat (contoh: "Halo kak! Selamat datang di Havenso Cafe 😊 Senang sekali bisa melayani Meja ${tableNum} hari ini. Mau ngopi atau cari menu yang segar-segar kak?").
-   - RESPON INGIN MEMESAN ("mau pesen", "mau pesan", "pesen dong", "bisa pesen?", dsb): Jawab singkat dan sopan 1 kalimat: "Siap kak! Mau pesan apa untuk Meja ${tableNum} hari ini? Silakan sebutkan pesanannya ya 😊". DILARANG KERAS langsung memuntahkan contoh menu atau rekomendasi panjang tanpa diminta!
+   - Pahami sapaan & tes pelanggan (p, ping, tes, test, halo, hai, kuk, der, kiw, bro, kak, bang, dek, kids, bocil, mas, mba, bos, pelayan, dll).
+   - SAMBUTAN AWAL & SAPAAN: Saat pelanggan menyapa atau mengetes (p, ping, tes, test, bang, kak, dek, kids, halo, hai, dsb), sambut dulu dengan ramah, santun, dan validasi kehadiran mereka dengan hangat. DILARANG KERAS memanggil tool add_to_cart atau memasukkan menu ke keranjang jika pelanggan hanya menyapa, mengetes, atau memanggil tanpa instruksi pemesanan yang jelas!
+   - RESPON INGIN MEMESAN ("mau pesen", "mau pesan", "pesen dong", "bisa pesen?", dsb): Jawab singkat dan sopan 1 kalimat: "Siap kak! Mau pesan apa untuk Meja ${tableNum} hari ini? Silakan sebutkan pesanannya ya 😊". DILARANG KERAS langsung memanggil tool pesanan atau memuntahkan contoh menu tanpa diminta!
    - DILARANG KERAS memberikan instruksi tutorial/cara memesan kaku seperti "Contohnya: 'Saya mau Butterscotch Izanagi 1 pcs'", "Format pesan:", atau kalimat instruksi bot. Berbicaralah santai, alami, dan responsif selayaknya pelayan manusia sungguhan!
 
 2. KEAMANAN & BATASAN KETAT (SOP INTERNASIONAL & PRIVASI KAFE):
@@ -1110,28 +1298,22 @@ ${menuCatalogText}
                   notes: it.notes || it.customization || it.specialInstructions,
                   customizations: it.customizations || (it.notes ? { notes: it.notes } : undefined),
                 });
-              } else if (nameCandidate || it.menuItemId) {
-                actions.push({
-                  type: "ADD_ITEM",
-                  menuItemId: "custom-item",
-                  menuName: nameCandidate || it.menuItemId,
-                  quantity: it.quantity || 1,
-                  notes: it.notes || it.customization || it.specialInstructions,
-                  customizations: it.customizations || (it.notes ? { notes: it.notes } : undefined),
-                });
               }
+              // If targetItem is NOT found in the catalog, NEVER add dummy or custom-item!
             }
           } else if (fnName === "customize_cart_item") {
             const nameCandidate = fnArgs.menuName || fnArgs.name || fnArgs.item || "";
             const targetItem = matchMenuItem(nameCandidate, menuItems);
-            actions.push({
-              type: "CUSTOMIZE_ITEM",
-              menuItemId: targetItem?.id,
-              menuName: targetItem?.name || nameCandidate || "Pesanan",
-              quantity: fnArgs.quantity,
-              notes: fnArgs.notes || fnArgs.customization || fnArgs.specialInstructions,
-              customizations: fnArgs.customizations || (fnArgs.notes ? { notes: fnArgs.notes } : undefined),
-            });
+            if (targetItem) {
+              actions.push({
+                type: "CUSTOMIZE_ITEM",
+                menuItemId: targetItem.id,
+                menuName: targetItem.name,
+                quantity: fnArgs.quantity,
+                notes: fnArgs.notes || fnArgs.customization || fnArgs.specialInstructions,
+                customizations: fnArgs.customizations || (fnArgs.notes ? { notes: fnArgs.notes } : undefined),
+              });
+            }
           } else if (fnName === "remove_from_cart") {
             const targetItem = matchMenuItem(fnArgs.menuName || "", menuItems);
             actions.push({

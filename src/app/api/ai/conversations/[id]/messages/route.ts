@@ -224,17 +224,21 @@ export async function POST(
 
     for (const act of aiResult.actions) {
       if (act.type === "ADD_ITEM") {
-        const mName = (act.menuName || "").toLowerCase();
+        const mName = (act.menuName || "").toLowerCase().trim();
         const itemObj =
-          (act.menuItemId ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
+          (act.menuItemId && act.menuItemId !== "custom-item" ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
           (mName ? allMenuItems.find((m) => m.name.toLowerCase() === mName) : null) ||
-          (mName ? allMenuItems.find((m) => m.name.toLowerCase().includes(mName)) : null) ||
+          (mName && mName.length >= 3 ? allMenuItems.find((m) => m.name.toLowerCase().includes(mName)) : null) ||
           (act.menuItemId ? allMenuItems.find((m) => m.name.toLowerCase() === String(act.menuItemId).toLowerCase()) : null);
+
+        if (!itemObj && (!mName || mName === "custom-item" || mName === "menu" || mName === "pesanan")) {
+          continue;
+        }
 
         const itemId = itemObj?.id || act.menuItemId || "custom-item";
         const itemName = itemObj?.name || act.menuName || "Menu";
         const itemPrice = itemObj?.price || 28000;
-        const qty = act.quantity || 1;
+        const qty = act.quantity && act.quantity > 0 ? act.quantity : 1;
 
         let cart = await prisma.cart.findUnique({
           where: { sessionId: conversation.sessionId },
@@ -412,27 +416,32 @@ export async function POST(
             await prisma.cartItem.delete({ where: { id: dup.id } });
           }
         } else {
-          // If cart was empty, create the item with customization notes!
-          const itemObj = allMenuItems.find((m) => m.id === act.menuItemId || m.name.toLowerCase() === (act.menuName || "").toLowerCase());
-          const itemName = itemObj?.name || act.menuName || "Caramel Macchiato";
-          const unitPrice = itemObj?.price || 30000;
-          const qty = act.quantity && act.quantity > 0 ? act.quantity : 1;
-          const customObj: Record<string, any> = {
-            name: itemName,
-            itemName: itemName,
-            notes: act.notes,
-          };
+          // If cart was empty, ONLY create an item if a REAL catalog menu item was matched!
+          const itemObj =
+            (act.menuItemId && act.menuItemId !== "custom-item" ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
+            (act.menuName ? allMenuItems.find((m) => m.name.toLowerCase() === act.menuName!.toLowerCase()) : null);
 
-          await prisma.cartItem.create({
-            data: {
-              cartId: cart.id,
-              menuItemId: itemObj?.id || act.menuItemId || "custom-item",
-              quantity: qty,
-              customizations: JSON.stringify(customObj),
-              unitPrice,
-              subtotal: qty * unitPrice,
-            },
-          });
+          if (itemObj) {
+            const itemName = itemObj.name;
+            const unitPrice = itemObj.price;
+            const qty = act.quantity && act.quantity > 0 ? act.quantity : 1;
+            const customObj: Record<string, any> = {
+              name: itemName,
+              itemName: itemName,
+              notes: act.notes,
+            };
+
+            await prisma.cartItem.create({
+              data: {
+                cartId: cart.id,
+                menuItemId: itemObj.id,
+                quantity: qty,
+                customizations: JSON.stringify(customObj),
+                unitPrice,
+                subtotal: qty * unitPrice,
+              },
+            });
+          }
         }
 
         const items = await prisma.cartItem.findMany({ where: { cartId: cart.id } });
