@@ -133,7 +133,7 @@ const server = http.createServer(async (req, res) => {
                 tools: payload.tools,
                 tool_choice: payload.tool_choice || "auto",
                 temperature: payload.temperature ?? 0.15,
-                max_tokens: payload.max_tokens ?? 450,
+                max_tokens: payload.max_tokens ?? 1500,
               }),
             });
 

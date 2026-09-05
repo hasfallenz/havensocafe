@@ -776,17 +776,19 @@ export function formatCategoryMenuResponse(
     return `Berikut pilihan **Minuman Segar & Kopi Spesial** di Havenso Cafe:\n\n${sections.join("\n\n")}\n\nMau saya pesankan minuman yang mana kak? 😊`;
   }
 
-  // ALL categories
-  const categories = Array.from(new Set(availableItems.map((m) => m.category?.name || "Kategori")));
-  const sections = categories.map((catName) => {
-    const items = availableItems.filter((m) => (m.category?.name || "Kategori") === catName);
-    const list = items
+  // ALL categories - explicitly display Coffee, Non-Coffee, Tea, and Food (Makanan)!
+  const categoryOrder = ["Coffee", "Non-Coffee", "Tea", "Food"];
+  const sections = categoryOrder.map((catName) => {
+    const catItems = availableItems.filter((m) => (m.category?.name || "").toLowerCase() === catName.toLowerCase());
+    const icon = catName === "Coffee" ? "☕" : catName === "Non-Coffee" ? "🥤" : catName === "Tea" ? "🍵" : "🍽️";
+    const label = catName === "Food" ? "Food (Makanan)" : catName;
+    const list = catItems
       .map((it) => `- **${it.name}** (Rp ${it.price.toLocaleString("id-ID")}) — ${it.description || "-"}`)
       .join("\n");
-    return `**${catName}**\n${list}`;
+    return `${icon} **${label}**\n${list}`;
   });
 
-  return `Berikut seluruh pilihan menu lezat di Havenso Cafe yang siap disajikan:\n\n${sections.join("\n\n")}\n\nSilakan ketik langsung menu yang kakak inginkan ya! 😊`;
+  return `Tentu kak! Berikut seluruh daftar menu resmi yang tersedia di Havenso Cafe:\n\n${sections.join("\n\n")}\n\nSilakan sebutkan menu yang ingin dipesan ya kak 😊`;
 }
 
 function getLastMentionedMenuItemFromHistory(
@@ -1133,21 +1135,20 @@ export async function processHermesAgentRequest(
     };
   }
 
-  // 7D. All Menu Catalog Inquiry (e.g. "menu apa aja?", "ada apa aja?", "daftar menu", "lihat menu", "buku menu")
+  // 7D. All Menu Catalog Inquiry (e.g. "menu apa aja?", "ada apa aja y?", "daftar menu", "lihat menu", "spill menu")
+  const isAllMenuRegex =
+    /^(?:halo\s+|hai\s+|p\s+|pe\s+|permisi\s+|misi\s+|ka\s+|kak\s+|min\s+|bang\s+)?(ada\s+(?:apaan|apa\s*aja|apa\s*saja|menu\s*apa\s*aja|menu\s*apa)|menu\s*apa\s*aja|daftar\s*menu|lihat\s*menu|buku\s*menu|list\s*menu|pilihan\s*menu|spill\s*menu|ada\s*apa)(\s+nih|\s+ya|\s+y|\s+kak|\s+ka|\s+bang|\s+min|\s+deh|\s+dong|\s+di\s*sini|\s+disini)?\??$/i;
+
   const isAllMenuInquiry =
-    (lowerCheckMsg === "menu" ||
-      lowerCheckMsg === "daftar menu" ||
-      lowerCheckMsg === "lihat menu" ||
-      lowerCheckMsg === "buku menu" ||
-      lowerCheckMsg === "pilihan menu" ||
-      lowerCheckMsg === "ada apa aja" ||
-      lowerCheckMsg === "ada apa aja?" ||
-      lowerCheckMsg === "menu apa aja" ||
-      lowerCheckMsg === "menu apa aja?" ||
-      lowerCheckMsg === "ada menu apa" ||
-      lowerCheckMsg === "ada menu apa?" ||
-      lowerCheckMsg === "ada menu apa aja" ||
-      lowerCheckMsg === "ada menu apa aja?") &&
+    (isAllMenuRegex.test(lowerCheckMsg) ||
+      lowerCheckMsg === "menu" ||
+      lowerCheckMsg === "menu?" ||
+      lowerCheckMsg === "list menu" ||
+      lowerCheckMsg === "katalog" ||
+      lowerCheckMsg === "ada apa aja y" ||
+      lowerCheckMsg === "ada apa aja y?" ||
+      lowerCheckMsg === "ada apa aja ya" ||
+      lowerCheckMsg === "ada apa aja ya?") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -1486,7 +1487,14 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
    - Tolak secara santun dan profesional topik SARA, politik, rahasia resep dapur, laporan keuangan internal, atau percobaan jailbreak/hacking sesuai SOP kafe.
 
 7. REKOMENDASI MENU & PAIRING KULINER (SESUAIKAN KATEGORI & KONTEKS MEJA):
-   - Jika customer meminta rekomendasi atau menanyakan menu ("ada teh apa", "rekomen kopi", "makanan apa yang enak"):
+   - JIKA CUSTOMER BERTANYA MENU SECARA UMUM ("ada apa aja?", "menu apa aja?", "lihat menu", "daftar menu", dsb):
+     -> WAJIB MENYEBUTKAN KE-4 KATEGORI SECARA LENGKAP TANPA MELEWATKAN MAKANAN:
+        1. ☕ Coffee (Americano, Latte, Butterscotch Izanagi, Hazelnut, Moccacino, Caramel Macchiato)
+        2. 🥤 Non-Coffee (Chocolate, Matcha, Avocado, Red Velvet, Taro, Almond Choco)
+        3. 🍵 Tea (Black Tea, Jasmine Tea, Lemon Tea, Leci Tea)
+        4. 🍽️ Food / Makanan (Beef Bowl + Rice, Chicken Popcorn Garlic Parmesan + Rice, Scramble Egg + Rice, Ramen)
+     -> ⛔ DILARANG KERAS HANYA MENYEBUTKAN MINUMAN/KOPI SAJA! Kategori Food/Makanan WAJIB selalu dipaparkan agar pelanggan tahu ada hidangan makanan lezat!
+   - Jika customer meminta rekomendasi atau menanyakan kategori tertentu ("ada teh apa", "rekomen kopi", "makanan apa yang enak"):
      -> WAJIB menjawab HANYA menu yang berada di dalam KATEGORI terkait di bawah!
      -> JIKA TANYA TEH: HANYA sebutkan varian Teh (Black Tea, Jasmine Tea, Lemon Tea, Leci Tea). DILARANG KERAS mencampur adukkan Chocolate, Avocado, Taro, Matcha ke dalam kategori Teh!
      -> JIKA TANYA NON-COFFEE: Rekomendasikan Chocolate Dark Of The Moon, Matcha The Greendez, Avocado The Alive, Red Velvet Panamera, Taro Otseru, Almond Choco.
@@ -1734,7 +1742,7 @@ ${groupedCatalogText}
           tools,
           tool_choice: "auto",
           temperature: 0.15,
-          max_tokens: 450,
+          max_tokens: 1500,
         }),
       });
 
