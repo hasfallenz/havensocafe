@@ -1215,10 +1215,42 @@ export async function processHermesAgentRequest(
     };
   }
 
+  // 6A. Direct Payment Verification Fast-Path (QRIS / Transfer Confirmation / Proof Uploaded)
+  const isPaidIntent =
+    Boolean(context.paymentVerified) ||
+    /\b(sudah|udah|uda|udh|dah|sdh)\s+(bayar|byr|byar|transfer|tf|lunas|dibayar|di\s*bayar)\b/i.test(lowerCheckMsg) ||
+    /\b(verifikasi|memverifikasi|konfirmasi|mengkonfirmasi|cek|check)\s+(pembayaran|bayar|byr|transfer|tf|qris)\b/i.test(lowerCheckMsg) ||
+    /\b(bukti\s+transfer|bukti\s+bayar|bukti\s+tf|transfer\s+berhasil|pembayaran\s+berhasil|lunas)\b/i.test(lowerCheckMsg) ||
+    lowerCheckMsg.includes("memverifikasi pembayaran") ||
+    lowerCheckMsg.includes("verifikasi pembayaran") ||
+    lowerCheckMsg.includes("sudah bayar") ||
+    lowerCheckMsg.includes("udah bayar") ||
+    lowerCheckMsg.includes("sudah transfer") ||
+    lowerCheckMsg.includes("udah transfer") ||
+    lowerCheckMsg.includes("sudah tf") ||
+    lowerCheckMsg.includes("udah tf");
+
+  if (isPaidIntent) {
+    const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+    const nameGreeting = activeName ? ` Kak ${activeName}` : " kak";
+    return {
+      reply: `Terima kasih banyak${nameGreeting}! Pembayaran untuk Meja ${tableNum} sudah berhasil diverifikasi. Pesanan kakak resmi diteruskan ke dapur dan saat ini sedang disiapkan ya! ☕👨‍🍳`,
+      actions: [
+        {
+          type: "CONFIRM_ORDER_PAID",
+          customerName: activeName || undefined,
+        },
+      ],
+      customerName: activeName || undefined,
+      intent: "CONFIRM_ORDER_PAID",
+    };
+  }
+
   // 6B. Direct Payment Method Selection (DEBIT / EDC)
   const isPureDebit =
-    /^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+)?(debit|debet|dbt|kartu\s*debit|kartu\s*debet|krtu\s*debit|krtu\s*debet|kartu|krtu|card|edc|mesin\s*edc|msin\s*edc|gesek|gesek\s*kartu|kartu\s*gesek|kartu\s*kredit)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
-    (/\b(debit|debet|dbt|kartu\s*debit|edc|mesin\s*edc|gesek)\b/i.test(lowerCheckMsg) && !/\b(qris|qros|qriz|barcode|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !!extractedName);
+    !isPaidIntent &&
+    (/^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+)?(debit|debet|dbt|kartu\s*debit|kartu\s*debet|krtu\s*debit|krtu\s*debet|kartu|krtu|card|edc|mesin\s*edc|msin\s*edc|gesek|gesek\s*kartu|kartu\s*gesek|kartu\s*kredit)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
+    (/\b(debit|debet|dbt|kartu\s*debit|edc|mesin\s*edc|gesek)\b/i.test(lowerCheckMsg) && !/\b(qris|qros|qriz|barcode|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && !!extractedName));
 
   if (isPureDebit && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -1239,8 +1271,9 @@ export async function processHermesAgentRequest(
 
   // 6C. Direct Payment Method Selection (QRIS)
   const isPureQris =
-    /^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+|minta\s+|tampilin\s+|tampilkan\s+|tunjukin\s+|tunjukkin\s+|liat\s+)?(qris|qros|qriz|qriss|barcode|barcod|barkod|barkode|scan|skan|scan\s*barcode|skan\s*barcode|scan\s*qris|skan\s*qris|barcode\s*qris)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
-    (/\b(qris|qros|qriz|qriss|barcode|barcod|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(debit|debet|edc)\b/i.test(lowerCheckMsg) && !!extractedName);
+    !isPaidIntent &&
+    (/^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+|minta\s+|tampilin\s+|tampilkan\s+|tunjukin\s+|tunjukkin\s+|liat\s+)?(qris|qros|qriz|qriss|barcode|barcod|barkod|barkode|scan|skan|scan\s*barcode|skan\s*barcode|scan\s*qris|skan\s*qris|barcode\s*qris)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
+    (/\b(qris|qros|qriz|qriss|barcode|barcod|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(debit|debet|edc)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && !!extractedName));
 
   if (isPureQris && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -2363,7 +2396,12 @@ ${groupedCatalogText}
       const isAddingItem = actions.some((a) => a.type === "ADD_ITEM");
 
       const isPaidIntent =
-        context.paymentVerified ||
+        Boolean(context.paymentVerified) ||
+        /\b(sudah|udah|uda|udh|dah|sdh)\s+(bayar|byr|byar|transfer|tf|lunas|dibayar|di\s*bayar)\b/i.test(lowerMsg) ||
+        /\b(verifikasi|memverifikasi|konfirmasi|mengkonfirmasi|cek|check)\s+(pembayaran|bayar|byr|transfer|tf|qris)\b/i.test(lowerMsg) ||
+        /\b(bukti\s+transfer|bukti\s+bayar|bukti\s+tf|transfer\s+berhasil|pembayaran\s+berhasil|lunas)\b/i.test(lowerMsg) ||
+        lowerMsg.includes("memverifikasi pembayaran") ||
+        lowerMsg.includes("verifikasi pembayaran") ||
         lowerMsg.includes("sudah bayar") ||
         lowerMsg.includes("udah bayar") ||
         lowerMsg.includes("uda bayar") ||
@@ -2377,8 +2415,8 @@ ${groupedCatalogText}
         lowerMsg.includes("uda transfer") ||
         lowerMsg.includes("udh transfer") ||
         lowerMsg.includes("dah transfer") ||
-        lowerMsg.includes("verifikasi pembayaran") ||
-        lowerMsg.includes("memverifikasi pembayaran");
+        lowerMsg.includes("sudah tf") ||
+        lowerMsg.includes("udah tf");
 
       const isDebitIntent =
         lowerMsg.includes("debit") ||
