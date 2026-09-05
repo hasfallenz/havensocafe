@@ -846,9 +846,7 @@ export async function POST(
     }
 
     // Generate cumulative full-order confirmation if cart items were added/modified/customized
-    if (extraMetadata.paymentPending) {
-      finalReplyContent = `Mohon maaf kak, setelah sistem kami melakukan pengecekan mutasi ke DANA secara real-time, dana sebesar Rp ${(updatedCart?.total || 0).toLocaleString("id-ID")} untuk Meja ${tableNumber || "A1"} masih BELUM DITEMUKAN / BELUM DITRANSFER.\n\nSilakan selesaikan pembayaran terlebih dahulu melalui scan barcode QRIS di atas ya kak. Jika sudah berhasil transfer, silakan klik tombol Verifikasi Pembayaran Otomatis kembali 😊`;
-    } else if (
+    if (
       aiResult.actions.some(
         (a) =>
           a.type === "ADD_ITEM" || a.type === "REMOVE_ITEM" || a.type === "CUSTOMIZE_ITEM"

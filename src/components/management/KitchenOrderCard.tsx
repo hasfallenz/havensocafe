@@ -2,7 +2,7 @@
 
 import React from "react";
 import { OrderData, OrderStatus } from "@/types";
-import { formatTimeAgo, formatCurrency } from "@/lib/utils";
+import { formatTimeAgo } from "@/lib/utils";
 import { Clock, Play, CheckCircle2, Check, AlertCircle } from "lucide-react";
 
 interface KitchenOrderCardProps {
@@ -76,9 +76,16 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
         </div>
 
         <div className="mt-1 flex items-center justify-between">
-          <span className="text-xs font-black text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/60">
-            Meja {order.tableNumber || "A1"}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-black text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/60">
+              Meja {order.tableNumber || "A1"}
+            </span>
+            {order.customerName && (
+              <span className="text-xs font-bold text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded-md">
+                A/N: {order.customerName}
+              </span>
+            )}
+          </div>
           <span className="text-[11px] font-bold text-zinc-500">
             {order.items.length} item
           </span>
