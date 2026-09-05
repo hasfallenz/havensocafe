@@ -12,6 +12,8 @@ import {
   ShoppingBag,
   Bell,
   Printer,
+  X,
+  Receipt,
 } from "lucide-react";
 import ThermalReceiptModal from "@/components/receipt/ThermalReceiptModal";
 
@@ -22,6 +24,33 @@ export default function DedicatedStaffPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<OrderData | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [newOrderAlert, setNewOrderAlert] = useState<{
+    orderNumber: string;
+    tableNumber: string;
+    total: number;
+    order: OrderData;
+  } | null>(null);
+
+  const playOrderChime = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.6);
+    } catch {
+      // Audio autoplay policy
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -54,8 +83,21 @@ export default function DedicatedStaffPage() {
           event.type === "ORDER_CREATED" ||
           event.type === "ORDER_STATUS_CHANGED" ||
           event.type === "STAFF_TAKEOVER" ||
-          event.type === "RETURN_TO_AI"
+          event.type === "RETURN_TO_AI" ||
+          event.type === "PAYMENT_COMPLETED"
         ) {
+          if (event.type === "ORDER_CREATED" || event.type === "PAYMENT_COMPLETED") {
+            const ord = (event.data as any)?.order || event.data;
+            if (ord && ord.orderNumber) {
+              setNewOrderAlert({
+                orderNumber: ord.orderNumber,
+                tableNumber: ord.tableNumber || "A1",
+                total: ord.total || 0,
+                order: ord,
+              });
+              playOrderChime();
+            }
+          }
           loadData();
         }
       } catch (err) {
@@ -141,6 +183,54 @@ export default function DedicatedStaffPage() {
 
       {/* Main Container */}
       <main className="p-6 md:p-8 max-w-7xl w-full mx-auto flex-1 flex flex-col gap-6">
+        {/* Instant New Order & Receipt Notification Banner */}
+        {newOrderAlert && (
+          <div className="p-4 rounded-2xl bg-amber-500 text-zinc-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/20 animate-in slide-in-from-top duration-300">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-zinc-950 text-amber-400 rounded-xl shadow-xs">
+                <Receipt className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-sm uppercase tracking-tight">
+                    Pesanan Baru Masuk & Siap Cetak Struk!
+                  </span>
+                  <span className="bg-zinc-950 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-md">
+                    MEJA {newOrderAlert.tableNumber}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-zinc-900 mt-0.5">
+                  Order #{newOrderAlert.orderNumber} • Total: {formatCurrency(newOrderAlert.total)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedReceiptOrder(newOrderAlert.order);
+                  setIsReceiptOpen(true);
+                  setNewOrderAlert(null);
+                  setActiveTab("orders");
+                }}
+                className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                <span>Cetak Struk Sekarang</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewOrderAlert(null)}
+                className="p-2 hover:bg-amber-600 rounded-xl text-zinc-950 transition-colors cursor-pointer"
+                title="Tutup notifikasi"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b border-zinc-200/80 pb-3">
           <button

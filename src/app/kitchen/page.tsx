@@ -12,17 +12,13 @@ import {
   AlertCircle,
   Volume2,
   VolumeX,
-  Printer,
 } from "lucide-react";
-import ThermalReceiptModal from "@/components/receipt/ThermalReceiptModal";
 
 export default function DedicatedKitchenPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<OrderData | null>(null);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const previousOrdersCountRef = React.useRef<number | null>(null);
 
   const playChime = useCallback((type: "new_order" | "advance" = "advance") => {
@@ -281,23 +277,9 @@ export default function DedicatedKitchenPage() {
                             <span className="font-mono font-black text-base text-white">
                               {order.orderNumber}
                             </span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedReceiptOrder(order);
-                                  setIsReceiptOpen(true);
-                                }}
-                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-zinc-300 border border-zinc-700/80 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                                title="Cetak Tiket Dapur / Slip"
-                              >
-                                <Printer className="w-3.5 h-3.5 text-amber-400 hover:text-inherit" />
-                                <span>Slip</span>
-                              </button>
-                              <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
-                                <Clock className="w-3 h-3" />
-                                <span>{formatTimeAgo(order.createdAt)}</span>
-                              </div>
+                            <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatTimeAgo(order.createdAt)}</span>
                             </div>
                           </div>
 
@@ -385,14 +367,6 @@ export default function DedicatedKitchenPage() {
           })}
         </div>
       </main>
-
-      {/* Printable Thermal Kitchen Slip Modal */}
-      <ThermalReceiptModal
-        isOpen={isReceiptOpen}
-        onClose={() => setIsReceiptOpen(false)}
-        order={selectedReceiptOrder}
-        mode="KITCHEN"
-      />
     </div>
   );
 }
