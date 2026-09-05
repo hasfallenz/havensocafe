@@ -8,7 +8,6 @@ interface RichChatMessageProps {
   onConfirmPayment?: () => void;
   onUploadProof?: (base64Image: string) => void;
   onQuickOrder?: (name: string) => void;
-  onSelectPaymentMethod?: (methodText: string) => void;
   isAi?: boolean;
   isLoading?: boolean;
 }
@@ -19,7 +18,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   onConfirmPayment,
   onUploadProof,
   onQuickOrder,
-  onSelectPaymentMethod,
   isAi = false,
   isLoading = false,
 }) => {
@@ -45,7 +43,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
 
   const qrisData = metaObj?.qris;
   const debitData = metaObj?.debitPayment;
-  const paymentOptions = metaObj?.paymentOptions;
   const isOrderConfirmed = metaObj?.orderConfirmed;
   const imageUrl = metaObj?.imageUrl;
 
@@ -59,20 +56,15 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     }, 4000);
   };
 
-  const handleMethodChoice = (choiceText: string) => {
-    if (onSelectPaymentMethod) {
-      onSelectPaymentMethod(choiceText);
-    } else if (onQuickOrder) {
-      onQuickOrder(choiceText);
-    }
-  };
-
-  // If QRIS card is shown, filter out redundant template intro text
-  const cleanContent = qrisData
+  // If QRIS card is shown, filter out redundant template intro text, and strip star emojis
+  let cleanContent = qrisData
     ? content
         .replace(/Siap kak! Ini kode QRIS resmi[\s\S]*?ya! 😊/gi, "")
         .trim()
     : content;
+
+  // Strip star emojis ✨ ⭐ 🌟
+  cleanContent = cleanContent.replace(/[✨⭐🌟]/g, "").trim();
 
   return (
     <div className="flex flex-col gap-3 text-xs">
@@ -97,54 +89,6 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               Bukti Transfer QRIS
             </span>
-          </div>
-        </div>
-      )}
-
-      {/* 1b. Quick Payment Method Selection Buttons */}
-      {paymentOptions && !qrisData && !debitData && !isOrderConfirmed && (
-        <div className="mt-2 flex flex-col gap-2 p-3.5 rounded-3xl bg-gradient-to-br from-zinc-50 to-amber-50/40 border border-amber-200/80 shadow-sm animate-in zoom-in-95 duration-200">
-          <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-950">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Pilih Metode Pembayaran Cashless Meja:</span>
-          </div>
-          <p className="text-[10.5px] text-zinc-600 leading-normal">
-            Pilih kemudahan transaksi Anda di Havenso Cafe:
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => handleMethodChoice("Saya mau bayar via QRIS")}
-              className="py-3 px-3.5 rounded-2xl bg-white hover:bg-rose-50 border border-rose-200 text-rose-950 font-extrabold text-xs flex items-center justify-between shadow-xs transition-all hover:scale-101 active:scale-98 cursor-pointer group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
-                  <QrCode className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-black">Scan QRIS</div>
-                  <div className="text-[9.5px] text-zinc-500 font-medium">Barcode di layar</div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleMethodChoice("Saya mau bayar pakai Kartu Debit (Bawa Mesin EDC)")}
-              className="py-3 px-3.5 rounded-2xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-950 font-extrabold text-xs flex items-center justify-between shadow-xs transition-all hover:scale-101 active:scale-98 cursor-pointer group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
-                  <CreditCard className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-black">Kartu Debit</div>
-                  <div className="text-[9.5px] text-zinc-500 font-medium">Staf bawa mesin EDC</div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-sky-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
           </div>
         </div>
       )}

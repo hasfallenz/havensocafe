@@ -847,7 +847,7 @@ export async function POST(
 
     // Generate cumulative full-order confirmation if cart items were added/modified/customized
     if (extraMetadata.paymentPending) {
-      finalReplyContent = `Mohon maaf kak, setelah sistem kami melakukan pengecekan mutasi ke DANA secara real-time, dana sebesar Rp ${(updatedCart?.total || 0).toLocaleString("id-ID")} untuk Meja **${tableNumber || "A1"}** masih **BELUM DITEMUKAN / BELUM DITRANSFER** ⚠️.\n\nSilakan selesaikan pembayaran terlebih dahulu melalui scan barcode QRIS di atas ya kak. Jika sudah berhasil transfer, silakan klik tombol **⚡ Verifikasi Pembayaran Otomatis** kembali 😊`;
+      finalReplyContent = `Mohon maaf kak, setelah sistem kami melakukan pengecekan mutasi ke DANA secara real-time, dana sebesar Rp ${(updatedCart?.total || 0).toLocaleString("id-ID")} untuk Meja ${tableNumber || "A1"} masih BELUM DITEMUKAN / BELUM DITRANSFER.\n\nSilakan selesaikan pembayaran terlebih dahulu melalui scan barcode QRIS di atas ya kak. Jika sudah berhasil transfer, silakan klik tombol Verifikasi Pembayaran Otomatis kembali 😊`;
     } else if (
       aiResult.actions.some(
         (a) =>
@@ -875,59 +875,31 @@ export async function POST(
 
           let noteStr = "";
           if (cObj.notes) {
-            noteStr = ` *(${cObj.notes})*`;
+            noteStr = ` (${cObj.notes})`;
           } else if (cObj.iceLevel || cObj.sugarLevel || cObj.temperature) {
             const parts = [];
             if (cObj.temperature) parts.push(cObj.temperature.toUpperCase());
             if (cObj.sugarLevel) parts.push(`Sugar: ${cObj.sugarLevel}`);
             if (cObj.iceLevel && cObj.iceLevel !== "normal") parts.push(`Ice: ${cObj.iceLevel}`);
-            if (parts.length > 0) noteStr = ` *(${parts.join(", ")})*`;
+            if (parts.length > 0) noteStr = ` (${parts.join(", ")})`;
           }
 
-          return `- **${ci.quantity}x ${displayName}**${noteStr} — Rp ${(ci.subtotal || 0).toLocaleString("id-ID")}`;
+          return `- ${ci.quantity}x ${displayName}${noteStr} (Rp ${(ci.subtotal || 0).toLocaleString("id-ID")})`;
         })
         .join("\n");
 
-      // Check if aiResult.reply had an appetizing answer/description (e.g. from compound question)
-      let introPrefix = "";
-      if (
-        aiResult.reply &&
-        (aiResult.reply.includes("rasanya") ||
-          aiResult.reply.includes("adalah") ||
-          aiResult.reply.includes("nikmat") ||
-          aiResult.reply.includes("harum") ||
-          aiResult.reply.includes("sajian")) &&
-        !aiResult.reply.startsWith("Baik kak, pesanan")
-      ) {
-        const firstPart = aiResult.reply.split("\n\n")[0];
-        if (firstPart && firstPart.length > 10) {
-          introPrefix = `${firstPart}\n\n`;
-        }
-      }
-
-      finalReplyContent = `${introPrefix}Baik kak, pesanan untuk **Meja ${tableNumber || "A1"}** sudah saya perbarui:\n\n${fullItemsList}\n\n🧾 **Total Tagihan: Rp ${(updatedCart.total || 0).toLocaleString("id-ID")}** *(termasuk PB1 10%)*\n\nApakah pesanannya sudah sesuai kak? Atau ada menu lain yang ingin ditambah? 😊`;
+      finalReplyContent = `Baik kak, pesanan untuk Meja ${tableNumber || "A1"} sudah dicatat:\n\n${fullItemsList}\n\nTotal: Rp ${(updatedCart.total || 0).toLocaleString("id-ID")} (sudah termasuk PB1 10%)\n\nAda menu lain yang ingin ditambah kak, atau sudah cukup ini saja? 😊`;
     }
 
     if (extraMetadata.orderConfirmed) {
-      finalReplyContent = `Terima kasih banyak kak, pembayaran QRIS sebesar Rp ${(extraMetadata.orderConfirmed.total || 0).toLocaleString("id-ID")} sudah BERHASIL terverifikasi secara otomatis! ✨\n\nPesanan Meja **${tableNumber || "A1"}** (${extraMetadata.orderConfirmed.orderNumber}) sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Mohon ditunggu sebentar ya kak, selamat menikmati! ☕👨‍🍳`;
+      finalReplyContent = `Terima kasih banyak kak, pembayaran QRIS sebesar Rp ${(extraMetadata.orderConfirmed.total || 0).toLocaleString("id-ID")} sudah BERHASIL terverifikasi! Pesanan Meja ${tableNumber || "A1"} (${extraMetadata.orderConfirmed.orderNumber}) sudah resmi kami kirimkan ke tim Dapur & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
     }
 
-    if (
-      !extraMetadata.qris &&
-      !extraMetadata.debitPayment &&
-      !extraMetadata.orderConfirmed &&
-      (finalReplyContent.includes("via **QRIS**") ||
-        finalReplyContent.includes("Kartu Debit") ||
-        finalReplyContent.includes("mesin EDC") ||
-        (finalReplyContent.toLowerCase().includes("qris") &&
-          (finalReplyContent.toLowerCase().includes("debit") ||
-            finalReplyContent.toLowerCase().includes("edc"))))
-    ) {
-      extraMetadata.paymentOptions = {
-        show: true,
-        customerName: session?.customerName || aiResult.customerName,
-      };
-    }
+    // Strip any raw asterisks, markdown symbols or star emojis to prevent bot-like appearance
+    finalReplyContent = finalReplyContent
+      .replace(/[*_~`]/g, "")
+      .replace(/[✨⭐🌟]/g, "")
+      .trim();
 
     // Save AI response message
     const aiMsg = await prisma.message.create({

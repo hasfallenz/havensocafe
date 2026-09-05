@@ -246,7 +246,6 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
                         content={msg.content}
                         metadata={msg.metadata}
                         onQuickOrder={(name) => onSendMessage(`Pesen 1 ${name}`)}
-                        onSelectPaymentMethod={(methodText) => onSendMessage(methodText)}
                         onConfirmPayment={() =>
                           onSendMessage(
                             "Saya ingin memverifikasi pembayaran QRIS",
