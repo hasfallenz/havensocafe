@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "hermes:gateway": "node scripts/hermes-gateway.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -16,7 +17,6 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "framer-motion": "^13.1.1",
-    "groq-sdk": "^1.6.0",
     "lucide-react": "^1.33.0",
     "next": "16.3.2",
     "qrcode.react": "^4.2.0",

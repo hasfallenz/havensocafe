@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { processGroqAgentRequest } from "@/lib/groq-agent";
+import { processHermesAgentRequest } from "@/lib/hermes-agent";
 import { eventBus } from "@/lib/events";
 import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
@@ -141,7 +141,7 @@ export async function POST(
       });
     }
 
-    // 4. Run Real AI Agent (Groq Llama 3.3 70B)
+    // 4. Run Real AI Agent (Hermes Agent Framework)
     const allMenuItems = await prisma.menuItem.findMany({
       include: { category: true },
     });
@@ -202,7 +202,7 @@ export async function POST(
       });
     }
 
-    const aiResult = await processGroqAgentRequest(
+    const aiResult = await processHermesAgentRequest(
       content,
       {
         sessionId: conversation.sessionId,
