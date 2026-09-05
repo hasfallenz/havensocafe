@@ -148,6 +148,7 @@ export type TicketType =
   | "LIVE_CHAT"
   | "PHYSICAL_ASSISTANCE"
   | "PAYMENT_ISSUE"
+  | "DEBIT_PAYMENT"
   | "REFUND"
   | "WRONG_ORDER"
   | "ALLERGEN"

@@ -8,6 +8,7 @@ export interface AgentAction {
     | "CLEAR_CART"
     | "SET_CUSTOMER_NAME"
     | "SHOW_QRIS"
+    | "REQUEST_DEBIT_PAYMENT"
     | "CONFIRM_ORDER_PAID"
     | "CALL_STAFF"
     | "NONE";
@@ -19,6 +20,7 @@ export interface AgentAction {
   reason?: string;
   amount?: number;
   customerName?: string;
+  paymentMethod?: "QRIS" | "DEBIT";
 }
 
 export interface AgentResponse {
@@ -1177,19 +1179,28 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
    - Di Havenso Cafe, semua sajian kopi/minuman disajikan dalam 1 porsi standar gelas saji (dingin/iced secara default, kecuali diminta panas).
    - Ketika pelanggan berkata "Pesan 1 Caramel Macchiato", SEGERA panggil tool add_to_cart dan konfirmasikan pesanannya tanpa menanyakan pertanyaan kaku mengenai ukuran gelas!
 
-9. VALIDASI NAMA PEMESAN SECARA SOPAN (CUSTOMER NAME VERIFICATION):
+9. VALIDASI NAMA PEMESAN & METODE PEMBAYARAN (QRIS & KARTU DEBIT):
    - Standar Etika Pelayanan Bintang 5 Havenso Cafe: Nama pemesan diperlukan agar tercetak keren & jelas di struk resmi kasir dan memudahkan staf meja saat mengantar pesanan.
+   - METODE PEMBAYARAN RESMI HAVENSO CAFE TERDIRI DARI 2 OPSI (100% Cashless):
+     1. QRIS: Pelanggan scan kode barcode QRIS langsung di layar.
+     2. KARTU DEBIT: Staf fisik akan segera datang ke meja membawakan mesin EDC untuk digesek/tap.
    - KETIKA PESANAN DIVALIDASI / CUSTOMER INGIN CHECKOUT ATAU BAYAR (misalnya: "itu aja", "mau bayar", "lanjut bayar", "sudah pas", "siap bayar", "checkout", dsb):
      * JIKA NAMA PEMESAN BELUM DIKETAHUI:
-       -> DILARANG LANGSUNG memanggil tool show_qris_payment!
+       -> DILARANG LANGSUNG memanggil tool show_qris_payment atau request_debit_payment!
        -> Validasi pesanan meja terlebih dahulu dan tanyakan nama pemesan dengan sangat santun, ramah, dan bersahaja:
-          "Baik kak, pesanan untuk Meja ${tableNum} sudah saya catat dengan sempurna. Sebelum kami buatkan kode QRIS pembayarannya, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cantumkan di struk resmi kasir dan memudahkan staf kami saat mengantarkan pesanan 😊"
-     * KETIKA CUSTOMER MENYEBUTKAN NAMA (contoh: "Budi", "Atas nama Hendra", "Zura", "Kak Dimas", dsb):
-       -> Panggil tool show_qris_payment dengan parameter customerName: "[Nama]".
-       -> Balas dengan hangat, ramah, dan sebut namanya secara terhormat:
-          "Terima kasih banyak, Kak [Nama]! 🙏 Pesanan Meja ${tableNum} atas nama Kak [Nama] sudah kami kunci. Ini kode QRIS resmi Havenso Cafe untuk pembayaran..."
-     * JIKA CUSTOMER SUDAH MENYEBUTKAN NAMANYA SEJAK AWAL (contoh: "Saya Dimas pesan 1 Latte"):
-       -> Ingat dan sapa selalu sebagai "Kak Dimas". Saat checkout/bayar, langsung tampilkan QRIS dengan customerName: "Dimas" tanpa perlu bertanya ulang!
+          "Baik kak, pesanan untuk Meja ${tableNum} sudah saya catat dengan sempurna. Sebelum kami proses pembayarannya, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cantumkan di struk resmi kasir dan memudahkan staf kami saat mengantarkan pesanan 😊"
+     * JIKA NAMA PEMESAN SUDAH DIKETAHUI (misal Kak [Nama]):
+       -> JIKA CUSTOMER MEMILIH QRIS (misal: "qris", "scan barcode", "pake qris", "qris aja", "scan aja"):
+          * Panggil tool show_qris_payment dengan parameter customerName: "[Nama]".
+          * Balas dengan hangat: "Siap Kak [Nama]! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja ${tableNum}. Silakan scan barcode di bawah ya 😊"
+       -> JIKA CUSTOMER MEMILIH KARTU DEBIT (misal: "kartu debit", "debit", "mesin edc", "edc", "gesek", "kartu"):
+          * Panggil tool request_debit_payment dengan parameter customerName: "[Nama]".
+          * Balas dengan ramah dan elegan: "Baik Kak [Nama]! Kami telah mengabari staf kami. Staf kami sedang menuju ke Meja ${tableNum} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️"
+       -> JIKA CUSTOMER BELUM MENENTUKAN METODE PEMBAYARAN:
+          * Tanyakan metode yang diinginkan dengan ramah:
+            "Terima kasih banyak Kak [Nama]! 🙏 Pesanan Meja ${tableNum} atas nama Kak [Nama] sudah kami siapkan. Kakak ingin melakukan pembayaran via **QRIS** (scan barcode langsung di layar) atau **Kartu Debit** (staf kami akan datang membawakan mesin EDC ke meja)? 😊"
+     * JIKA CUSTOMER SUDAH MENYEBUTKAN NAMANYA & METODE SEJAK AWAL (contoh: "Saya Dimas mau bayar debit"):
+       -> Langsung panggil request_debit_payment(customerName: "Dimas") tanpa perlu bertanya ulang!
      * DILARANG menanyakan nama berulang kali jika nama sudah diketahui!
 
 DAFTAR KATALOG MENU RESMI PER KATEGORI:
@@ -1296,6 +1307,23 @@ ${groupedCatalogText}
             customerName: {
               type: "string",
               description: "Nama pemesan (atas nama siapa) untuk dicetak di struk",
+            },
+            notes: { type: "string" },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "request_debit_payment",
+        description: "Memanggil staf untuk membawakan mesin EDC (Kartu Debit) ke meja pelanggan setelah nama pemesan terkonfirmasi.",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: {
+              type: "string",
+              description: "Nama pemesan yang meminta pembayaran kartu debit",
             },
             notes: { type: "string" },
           },
@@ -1459,6 +1487,15 @@ ${groupedCatalogText}
             actions.push({
               type: "SHOW_QRIS",
               customerName: detected || undefined,
+              paymentMethod: "QRIS",
+            });
+          } else if (fnName === "request_debit_payment") {
+            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            actions.push({
+              type: "REQUEST_DEBIT_PAYMENT",
+              customerName: detected || undefined,
+              paymentMethod: "DEBIT",
+              notes: fnArgs.notes,
             });
           } else if (fnName === "confirm_order_paid") {
             const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
@@ -1485,6 +1522,19 @@ ${groupedCatalogText}
         lowerMsg.includes("verifikasi pembayaran") ||
         lowerMsg.includes("memverifikasi pembayaran");
 
+      const isDebitIntent =
+        lowerMsg.includes("debit") ||
+        lowerMsg.includes("kartu debit") ||
+        lowerMsg.includes("edc") ||
+        lowerMsg.includes("mesin edc") ||
+        lowerMsg.includes("gesek") ||
+        lowerMsg.includes("kartu");
+
+      const isQrisIntent =
+        lowerMsg.includes("qris") ||
+        lowerMsg.includes("barcode") ||
+        lowerMsg.includes("scan");
+
       const effectiveCustomerName =
         actions.find((a) => a.customerName)?.customerName ||
         extractedName ||
@@ -1496,6 +1546,20 @@ ${groupedCatalogText}
         actions.push({
           type: "CONFIRM_ORDER_PAID",
           customerName: effectiveCustomerName || undefined,
+        });
+      } else if (isDebitIntent && context.currentCartItems && context.currentCartItems.length > 0) {
+        actions.length = 0;
+        actions.push({
+          type: "REQUEST_DEBIT_PAYMENT",
+          customerName: effectiveCustomerName || undefined,
+          paymentMethod: "DEBIT",
+        });
+      } else if (isQrisIntent && context.currentCartItems && context.currentCartItems.length > 0) {
+        actions.length = 0;
+        actions.push({
+          type: "SHOW_QRIS",
+          customerName: effectiveCustomerName || undefined,
+          paymentMethod: "QRIS",
         });
       }
 
@@ -1525,18 +1589,26 @@ ${groupedCatalogText}
 
       if (isProceedToPayment) {
         if (effectiveCustomerName) {
-          if (!actions.some((a) => a.type === "SHOW_QRIS")) {
+          if (isDebitIntent) {
+            actions.length = 0;
+            actions.push({
+              type: "REQUEST_DEBIT_PAYMENT",
+              customerName: effectiveCustomerName,
+              paymentMethod: "DEBIT",
+            });
+          } else if (isQrisIntent) {
             actions.length = 0;
             actions.push({
               type: "SHOW_QRIS",
               customerName: effectiveCustomerName,
+              paymentMethod: "QRIS",
             });
           }
         } else {
-          // If customer has NOT given their name yet, DO NOT show QRIS prematurely!
-          const qrisIdx = actions.findIndex((a) => a.type === "SHOW_QRIS");
-          if (qrisIdx !== -1) {
-            actions.splice(qrisIdx, 1);
+          // If customer has NOT given their name yet, DO NOT show QRIS or debit prematurely!
+          const prematureIdx = actions.findIndex((a) => a.type === "SHOW_QRIS" || a.type === "REQUEST_DEBIT_PAYMENT");
+          if (prematureIdx !== -1) {
+            actions.splice(prematureIdx, 1);
           }
         }
       }
@@ -1545,6 +1617,7 @@ ${groupedCatalogText}
       if (
         extractedName &&
         !actions.some((a) => a.type === "SHOW_QRIS") &&
+        !actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT") &&
         !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
         context.currentCartItems &&
         context.currentCartItems.length > 0
@@ -1557,10 +1630,19 @@ ${groupedCatalogText}
             lastAiMsg.content.toLowerCase().includes("dengan kakak siapa") ||
             lastAiMsg.content.toLowerCase().includes("pesanan ini atas nama siapa"))
         ) {
-          actions.push({
-            type: "SHOW_QRIS",
-            customerName: extractedName,
-          });
+          if (isDebitIntent) {
+            actions.push({
+              type: "REQUEST_DEBIT_PAYMENT",
+              customerName: extractedName,
+              paymentMethod: "DEBIT",
+            });
+          } else if (isQrisIntent) {
+            actions.push({
+              type: "SHOW_QRIS",
+              customerName: extractedName,
+              paymentMethod: "QRIS",
+            });
+          }
         }
       }
 
@@ -1572,23 +1654,32 @@ ${groupedCatalogText}
       // If checkout requested but name unknown, ensure we politely ask for the name!
       if (isProceedToPayment && !effectiveCustomerName) {
         if (!finalReply || !finalReply.toLowerCase().includes("atas nama")) {
-          finalReply = `Baik kak, pesanan untuk Meja **${tableNum}** sudah saya catat dengan rapi:\n${cartSummaryText}\n\nSebelum kami buatkan kode pembayaran QRIS, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cetak di struk resmi kasir dan memudahkan staf kami mengantarkan pesanan 😊`;
+          finalReply = `Baik kak, pesanan untuk Meja **${tableNum}** sudah saya catat dengan rapi:\n${cartSummaryText}\n\nSebelum kami proses pembayarannya, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cetak di struk resmi kasir dan memudahkan staf kami mengantarkan pesanan 😊`;
+        }
+      } else if (
+        effectiveCustomerName &&
+        !actions.some((a) => a.type === "SHOW_QRIS") &&
+        !actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT") &&
+        !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
+        (isProceedToPayment || (extractedName && context.currentCartItems && context.currentCartItems.length > 0))
+      ) {
+        // Customer name is known, but hasn't picked QRIS or Kartu Debit yet:
+        if (!finalReply || (!finalReply.includes("QRIS") && !finalReply.includes("Debit"))) {
+          finalReply = `Terima kasih banyak Kak **${effectiveCustomerName}**! 🙏 Pesanan Meja **${tableNum}** atas nama Kak **${effectiveCustomerName}** sudah siap kami proses:\n${cartSummaryText}\n\nKakak ingin melakukan pembayaran via **QRIS** (scan barcode langsung di layar) atau **Kartu Debit** (staf kami akan datang membawakan mesin EDC ke meja)? 😊`;
         }
       }
 
-      if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
+      if (actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT")) {
+        const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : "";
+        finalReply = `Baik${nameGreeting}! Permintaan pembayaran via Kartu Debit sudah kami teruskan ke staf kami. Staf kami sedang menuju ke Meja **${tableNum}** membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️`;
+      } else if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
         const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : " kak";
-        finalReply = `Terima kasih banyak${nameGreeting}! Pembayaran QRIS untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan resmi diteruskan ke dapur/barista dan saat ini sedang disiapkan! ☕👨‍🍳`;
-      }
-
-      // Only fallback if the LLM returned an empty text string alongside its tool call
-      if (!finalReply) {
-        if (actions.some((a) => a.type === "SHOW_QRIS")) {
-          const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : "";
-          finalReply = `Siap${nameGreeting}! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan barcode atau upload bukti transfer di bawah ya 😊`;
-        } else if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
-          finalReply = `Terima kasih banyak kak! Pembayaran untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan sudah dikirim ke dapur/barista!`;
-        } else if (actions.some((a) => a.type === "ADD_ITEM")) {
+        finalReply = `Terima kasih banyak${nameGreeting}! Pembayaran untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan resmi diteruskan ke dapur/barista dan saat ini sedang disiapkan! ☕👨‍🍳`;
+      } else if (actions.some((a) => a.type === "SHOW_QRIS")) {
+        const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : "";
+        finalReply = `Siap${nameGreeting}! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan barcode atau upload bukti transfer di bawah ya 😊`;
+      } else if (!finalReply) {
+        if (actions.some((a) => a.type === "ADD_ITEM")) {
           const itemsList = actions
             .filter((a) => a.type === "ADD_ITEM")
             .map((a) => `${a.quantity || 1}x ${a.menuName}`)

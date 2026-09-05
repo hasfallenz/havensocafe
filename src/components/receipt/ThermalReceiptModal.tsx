@@ -202,10 +202,19 @@ export default function ThermalReceiptModal({
           {/* Payment Status */}
           <div className="py-2.5 border-b border-dashed border-zinc-400 flex items-center justify-between text-[10px]">
             <span className="text-zinc-600">Metode Bayar:</span>
-            <span className="font-extrabold text-emerald-700 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              QRIS DINAMIS (LUNAS)
-            </span>
+            {order.payments?.[0]?.provider === "DEBIT" ||
+            order.notes?.toLowerCase().includes("debit") ||
+            order.notes?.toLowerCase().includes("edc") ? (
+              <span className="font-extrabold text-sky-900 flex items-center gap-1 bg-sky-50 px-1.5 py-0.5 rounded">
+                <CheckCircle2 className="w-3 h-3 text-sky-600" />
+                KARTU DEBIT / EDC (LUNAS)
+              </span>
+            ) : (
+              <span className="font-extrabold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                QRIS DINAMIS (LUNAS)
+              </span>
+            )}
           </div>
 
           {/* Footer Receipt Note */}

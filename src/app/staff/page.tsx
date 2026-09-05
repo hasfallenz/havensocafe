@@ -14,6 +14,7 @@ import {
   Printer,
   X,
   Receipt,
+  CreditCard,
 } from "lucide-react";
 import ThermalReceiptModal from "@/components/receipt/ThermalReceiptModal";
 
@@ -146,6 +147,29 @@ export default function DedicatedStaffPage() {
     }
   };
 
+  const handleConfirmDebit = async (ticket: SupportTicketData) => {
+    try {
+      const res = await fetch(`/api/support/${ticket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CONFIRM_DEBIT" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setTickets((prev) =>
+          prev.map((t) => (t.id === ticket.id ? json.data : t))
+        );
+        if (json.order) {
+          setSelectedReceiptOrder(json.order);
+          setIsReceiptOpen(true);
+        }
+        loadData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const pendingCount = tickets.filter((t) => t.status === "WAITING").length;
 
   return (
@@ -268,21 +292,45 @@ export default function DedicatedStaffPage() {
             ) : (
               tickets.map((ticket) => {
                 const isCritical = ticket.priority === "P0" || ticket.priority === "P1";
+                const isDebit = ticket.type === "DEBIT_PAYMENT";
+
+                let ticketMeta: any = {};
+                if (ticket.metadata) {
+                  try {
+                    ticketMeta = typeof ticket.metadata === "string" ? JSON.parse(ticket.metadata) : ticket.metadata;
+                  } catch (e) {
+                    ticketMeta = {};
+                  }
+                }
 
                 return (
                   <div
                     key={ticket.id}
                     className={`bg-white rounded-3xl p-5 border shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4 ${
-                      ticket.status === "WAITING" && isCritical
+                      isDebit
+                        ? ticket.status === "WAITING"
+                          ? "border-indigo-300 ring-2 ring-indigo-100 bg-gradient-to-b from-indigo-50/20 to-white"
+                          : "border-indigo-200"
+                        : ticket.status === "WAITING" && isCritical
                         ? "border-rose-300 ring-2 ring-rose-100"
                         : "border-zinc-200"
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-black text-sm text-sky-950 bg-sky-50 px-2.5 py-0.5 rounded-lg border border-sky-200">
-                          Meja {ticket.tableNumber || "A1"}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg border ${
+                            isDebit ? "text-indigo-950 bg-indigo-50 border-indigo-200" : "text-sky-950 bg-sky-50 border-sky-200"
+                          }`}>
+                            Meja {ticket.tableNumber || "A1"}
+                          </span>
+                          {isDebit && (
+                            <span className="inline-flex items-center gap-1 font-black text-[10px] px-2 py-0.5 rounded-md bg-indigo-600 text-white tracking-wide uppercase shadow-xs">
+                              <CreditCard className="w-3 h-3" />
+                              Bayar EDC
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] font-bold text-zinc-400">
                           {formatTimeAgo(ticket.createdAt)}
                         </span>
@@ -292,8 +340,33 @@ export default function DedicatedStaffPage() {
                         <p className="font-bold text-sm text-zinc-900 leading-snug">
                           {ticket.summary}
                         </p>
+
+                        {/* Customer & Amount details for Debit Payment */}
+                        {isDebit && (ticketMeta.customerName || ticketMeta.amount) && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-100 flex flex-col gap-1 text-xs">
+                            {ticketMeta.customerName && (
+                              <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-zinc-500 font-medium">Atas Nama:</span>
+                                <span className="font-black text-indigo-950 uppercase">{ticketMeta.customerName}</span>
+                              </div>
+                            )}
+                            {ticketMeta.amount > 0 && (
+                              <div className="flex justify-between items-center text-[11px] pt-1 border-t border-indigo-100/60">
+                                <span className="text-zinc-500 font-medium">Total Tagihan:</span>
+                                <span className="font-black text-indigo-950 font-mono">{formatCurrency(ticketMeta.amount)}</span>
+                              </div>
+                            )}
+                            {ticketMeta.orderNumber && (
+                              <div className="flex justify-between items-center text-[10px] text-zinc-400">
+                                <span>No. Order:</span>
+                                <span className="font-mono font-bold text-zinc-600">{ticketMeta.orderNumber}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {ticket.assignedUserName && (
-                          <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-1">
+                          <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-2">
                             <User className="w-3 h-3" />
                             Ditangani: {ticket.assignedUserName}
                           </span>
@@ -303,32 +376,55 @@ export default function DedicatedStaffPage() {
 
                     <div className="pt-3 border-t border-zinc-100 flex items-center gap-2">
                       {ticket.status === "WAITING" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleTakeRequest(ticket)}
-                          className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Hand className="w-3.5 h-3.5" />
-                          <span>Respon</span>
-                        </button>
+                        isDebit ? (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeRequest(ticket)}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-black shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>Bawa Mesin EDC ke Meja</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeRequest(ticket)}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Hand className="w-3.5 h-3.5" />
+                            <span>Respon</span>
+                          </button>
+                        )
                       ) : ticket.status === "IN_PROGRESS" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleResolveTicket(ticket.id)}
-                          className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-emerald-600 text-white text-xs font-extrabold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer group"
-                          title="Klik jika bantuan meja sudah selesai"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-                          <span className="group-hover:hidden truncate">Staff Segera ke Sana</span>
-                          <span className="hidden group-hover:inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Selesai
-                          </span>
-                        </button>
+                        isDebit ? (
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmDebit(ticket)}
+                            className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            title="Klik setelah pembayaran kartu debit berhasil di mesin EDC"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            <span>Konfirmasi Lunas EDC & Masuk Dapur</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleResolveTicket(ticket.id)}
+                            className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-emerald-600 text-white text-xs font-extrabold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer group"
+                            title="Klik jika bantuan meja sudah selesai"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                            <span className="group-hover:hidden truncate">Staff Segera ke Sana</span>
+                            <span className="hidden group-hover:inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Selesai
+                            </span>
+                          </button>
+                        )
                       ) : (
-                        <span className="text-xs font-bold text-zinc-400 flex items-center gap-1">
+                        <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Selesai Dilayani</span>
+                          <span>{isDebit ? "Lunas via Kartu Debit / EDC" : "Selesai Dilayani"}</span>
                         </span>
                       )}
                     </div>

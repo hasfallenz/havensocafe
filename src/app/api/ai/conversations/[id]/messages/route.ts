@@ -694,6 +694,140 @@ export async function POST(
         } else {
           finalReplyContent = `Saat ini keranjang pesanan untuk Meja **${tableNumber || "A1"}** masih kosong nih kak 😊. Mau saya pesankan menu kopi atau hidangan lezat hari ini?`;
         }
+      } else if (act.type === "REQUEST_DEBIT_PAYMENT") {
+        const activeCustomerName = act.customerName || aiResult.customerName || session?.customerName || null;
+        const cart = await prisma.cart.findUnique({
+          where: { sessionId: conversation.sessionId },
+          include: { items: true },
+        });
+
+        const itemsToProcess =
+          cart && cart.items && cart.items.length > 0
+            ? cart.items
+            : clientCart && clientCart.items && clientCart.items.length > 0
+            ? clientCart.items
+            : [];
+
+        let orderId: string | null = null;
+        let orderNumber: string | null = null;
+        let finalTotal = updatedCart?.total || 0;
+
+        if (itemsToProcess.length > 0) {
+          const orderItemsData = [];
+          let subtotal = 0;
+
+          for (const item of itemsToProcess) {
+            let customObj: any = {};
+            try {
+              customObj = typeof item.customizations === "string" ? JSON.parse(item.customizations || "{}") : (item.customizations || {});
+            } catch (e) {
+              customObj = {};
+            }
+
+            const menuItem =
+              allMenuItems.find((m) => m.id === item.menuItemId) ||
+              allMenuItems.find((m) => m.name.toLowerCase() === (item.name || item.menuItem?.name || customObj.name || "").toLowerCase()) ||
+              allMenuItems.find((m) => m.slug.toLowerCase() === (item.menuItemId || "").toLowerCase());
+
+            const resolvedName =
+              menuItem?.name ||
+              item.menuItem?.name ||
+              item.name ||
+              customObj.name ||
+              customObj.itemName ||
+              (item.menuItemId && !item.menuItemId.startsWith("cm") && !item.menuItemId.startsWith("item") ? item.menuItemId : null) ||
+              "Menu Spesial Havenso";
+
+            const itemPrice = menuItem?.price ?? item.unitPrice ?? item.price ?? (item.subtotal ? item.subtotal / (item.quantity || 1) : 28000);
+            const itemQty = item.quantity || 1;
+            const itemSubtotal = item.subtotal || itemPrice * itemQty;
+            subtotal += itemSubtotal;
+
+            orderItemsData.push({
+              menuItemId: menuItem?.id || item.menuItemId || "custom-item",
+              nameSnapshot: resolvedName,
+              priceSnapshot: itemPrice,
+              quantity: itemQty,
+              customizations: JSON.stringify(customObj),
+              subtotal: itemSubtotal,
+            });
+          }
+
+          if (subtotal === 0 && (cart?.total || clientCart?.total)) {
+            subtotal = cart?.subtotal || clientCart?.subtotal || Math.round((cart?.total || clientCart?.total || 0) / 1.1);
+          }
+
+          const tax = Math.round(subtotal * 0.1);
+          finalTotal = cart?.total || clientCart?.total || subtotal + tax;
+          orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
+
+          // Create pending order for debit payment
+          const order = await prisma.order.create({
+            data: {
+              orderNumber,
+              sessionId: conversation.sessionId,
+              customerName: activeCustomerName,
+              tableNumber: tableNumber || "A1",
+              status: "PENDING",
+              paymentStatus: "PENDING",
+              subtotal,
+              tax,
+              discount: 0,
+              total: finalTotal,
+              notes: activeCustomerName ? `A/N: ${activeCustomerName} - Pembayaran Kartu Debit (Bawa Mesin EDC)` : "Pembayaran Kartu Debit (Bawa Mesin EDC)",
+              items: {
+                create: orderItemsData,
+              },
+            },
+          });
+          orderId = order.id;
+
+          // Clear cart so items are safely migrated to the pending order
+          if (cart) {
+            await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+            updatedCart = await prisma.cart.update({
+              where: { id: cart.id },
+              data: { subtotal: 0, tax: 0, total: 0 },
+              include: { items: true },
+            });
+          }
+        }
+
+        const ticketSummary = `💳 Pembayaran Kartu Debit (Bawa Mesin EDC) - Meja ${tableNumber || "A1"} (A/N: ${activeCustomerName || "Pelanggan"})`;
+
+        const ticket = await prisma.supportTicket.create({
+          data: {
+            conversationId: id,
+            tableNumber: tableNumber || "A1",
+            type: "DEBIT_PAYMENT",
+            priority: "P0",
+            status: "WAITING",
+            summary: ticketSummary,
+            metadata: JSON.stringify({
+              orderId,
+              orderNumber,
+              customerName: activeCustomerName,
+              amount: finalTotal,
+              paymentMethod: "DEBIT",
+              requestedAt: new Date().toISOString(),
+            }),
+          },
+        });
+
+        eventBus.broadcast("SUPPORT_TICKET_CREATED", { ticket });
+
+        extraMetadata.debitPayment = {
+          show: true,
+          ticketId: ticket.id,
+          orderId,
+          orderNumber,
+          tableNumber: tableNumber || "A1",
+          customerName: activeCustomerName,
+          amount: finalTotal,
+        };
+
+        const nameGreeting = activeCustomerName ? ` Kak **${activeCustomerName}**` : "";
+        finalReplyContent = `Baik${nameGreeting}! Permintaan pembayaran via Kartu Debit sudah kami teruskan ke staf kami. Staf kami sedang menuju ke Meja **${tableNumber || "A1"}** membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️`;
       } else if (act.type === "CALL_STAFF") {
         const ticket = await prisma.supportTicket.create({
           data: {
@@ -776,6 +910,23 @@ export async function POST(
 
     if (extraMetadata.orderConfirmed) {
       finalReplyContent = `Terima kasih banyak kak, pembayaran QRIS sebesar Rp ${(extraMetadata.orderConfirmed.total || 0).toLocaleString("id-ID")} sudah BERHASIL terverifikasi secara otomatis! ✨\n\nPesanan Meja **${tableNumber || "A1"}** (${extraMetadata.orderConfirmed.orderNumber}) sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Mohon ditunggu sebentar ya kak, selamat menikmati! ☕👨‍🍳`;
+    }
+
+    if (
+      !extraMetadata.qris &&
+      !extraMetadata.debitPayment &&
+      !extraMetadata.orderConfirmed &&
+      (finalReplyContent.includes("via **QRIS**") ||
+        finalReplyContent.includes("Kartu Debit") ||
+        finalReplyContent.includes("mesin EDC") ||
+        (finalReplyContent.toLowerCase().includes("qris") &&
+          (finalReplyContent.toLowerCase().includes("debit") ||
+            finalReplyContent.toLowerCase().includes("edc"))))
+    ) {
+      extraMetadata.paymentOptions = {
+        show: true,
+        customerName: session?.customerName || aiResult.customerName,
+      };
     }
 
     // Save AI response message

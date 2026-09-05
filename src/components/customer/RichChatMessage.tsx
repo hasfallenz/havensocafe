@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, QrCode, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, QrCode, Loader2, Sparkles, CreditCard, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
@@ -8,6 +8,7 @@ interface RichChatMessageProps {
   onConfirmPayment?: () => void;
   onUploadProof?: (base64Image: string) => void;
   onQuickOrder?: (name: string) => void;
+  onSelectPaymentMethod?: (methodText: string) => void;
   isAi?: boolean;
   isLoading?: boolean;
 }
@@ -18,6 +19,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   onConfirmPayment,
   onUploadProof,
   onQuickOrder,
+  onSelectPaymentMethod,
   isAi = false,
   isLoading = false,
 }) => {
@@ -31,7 +33,7 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     }
   }, [isLoading]);
 
-  // Parse metadata to check for QRIS or Order Confirmed or Image or Customization
+  // Parse metadata to check for QRIS or Order Confirmed or Debit Payment or Options
   let metaObj: any = null;
   if (metadata) {
     try {
@@ -42,8 +44,11 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
   }
 
   const qrisData = metaObj?.qris;
+  const debitData = metaObj?.debitPayment;
+  const paymentOptions = metaObj?.paymentOptions;
   const isOrderConfirmed = metaObj?.orderConfirmed;
   const imageUrl = metaObj?.imageUrl;
+
   const handlePayClick = () => {
     setIsVerifying(true);
     if (onConfirmPayment) {
@@ -52,6 +57,14 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
     setTimeout(() => {
       setIsVerifying(false);
     }, 4000);
+  };
+
+  const handleMethodChoice = (choiceText: string) => {
+    if (onSelectPaymentMethod) {
+      onSelectPaymentMethod(choiceText);
+    } else if (onQuickOrder) {
+      onQuickOrder(choiceText);
+    }
   };
 
   // If QRIS card is shown, filter out redundant template intro text
@@ -88,7 +101,55 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
         </div>
       )}
 
-      {/* 2. Clean & Pure In-Chat QRIS Card */}
+      {/* 1b. Quick Payment Method Selection Buttons */}
+      {paymentOptions && !qrisData && !debitData && !isOrderConfirmed && (
+        <div className="mt-2 flex flex-col gap-2 p-3.5 rounded-3xl bg-gradient-to-br from-zinc-50 to-amber-50/40 border border-amber-200/80 shadow-sm animate-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-950">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Pilih Metode Pembayaran Cashless Meja:</span>
+          </div>
+          <p className="text-[10.5px] text-zinc-600 leading-normal">
+            Pilih kemudahan transaksi Anda di Havenso Cafe:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handleMethodChoice("Saya mau bayar via QRIS")}
+              className="py-3 px-3.5 rounded-2xl bg-white hover:bg-rose-50 border border-rose-200 text-rose-950 font-extrabold text-xs flex items-center justify-between shadow-xs transition-all hover:scale-101 active:scale-98 cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                  <QrCode className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-black">Scan QRIS</div>
+                  <div className="text-[9.5px] text-zinc-500 font-medium">Barcode di layar</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleMethodChoice("Saya mau bayar pakai Kartu Debit (Bawa Mesin EDC)")}
+              className="py-3 px-3.5 rounded-2xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-950 font-extrabold text-xs flex items-center justify-between shadow-xs transition-all hover:scale-101 active:scale-98 cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-black">Kartu Debit</div>
+                  <div className="text-[9.5px] text-zinc-500 font-medium">Staf bawa mesin EDC</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-sky-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2a. Clean & Pure In-Chat QRIS Card */}
       {qrisData && (
         <div className="mt-2 p-4 rounded-3xl bg-white border border-rose-200/90 shadow-xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200 text-zinc-900">
           {/* Top QRIS Banner */}
@@ -167,6 +228,64 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
               )}
             </button>
           )}
+        </div>
+      )}
+
+      {/* 2b. Debit Card / EDC In-Progress Card */}
+      {debitData && (
+        <div className="mt-2 p-4 rounded-3xl bg-gradient-to-b from-white to-sky-50/60 border border-sky-200 shadow-xl flex flex-col gap-3 animate-in zoom-in-95 duration-200 text-zinc-900">
+          <div className="w-full flex items-center justify-between pb-2.5 border-b border-sky-100">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-black text-xs text-sky-950 block leading-tight">
+                  Pembayaran Kartu Debit / EDC
+                </span>
+                <span className="text-[10px] font-semibold text-sky-600">
+                  Havenso Cafe • Meja {debitData.tableNumber || "A1"}
+                </span>
+              </div>
+            </div>
+            {debitData.orderNumber && (
+              <span className="font-mono text-[10.5px] font-black px-2 py-0.5 rounded-lg bg-sky-100 text-sky-900">
+                {debitData.orderNumber}
+              </span>
+            )}
+          </div>
+
+          {debitData.customerName && (
+            <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-between text-xs">
+              <span className="text-zinc-500 font-bold text-[11px]">Atas Nama:</span>
+              <span className="font-black text-zinc-950 uppercase">{debitData.customerName}</span>
+            </div>
+          )}
+
+          {debitData.amount > 0 && (
+            <div className="w-full text-center py-2.5 px-3 rounded-2xl bg-white border border-sky-100 shadow-2xs flex flex-col items-center">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                Total Tagihan (inc. PB1 10%)
+              </span>
+              <span className="font-black text-xl text-sky-950 font-mono">
+                {formatCurrency(debitData.amount)}
+              </span>
+            </div>
+          )}
+
+          {/* Status Indicator */}
+          <div className="w-full py-2.5 px-3 rounded-2xl bg-sky-100/90 border border-sky-300/80 text-sky-950 text-xs font-bold flex items-center gap-2.5 shadow-2xs">
+            <div className="relative flex items-center justify-center shrink-0">
+              <span className="w-3 h-3 rounded-full bg-sky-500 animate-ping absolute" />
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+            </div>
+            <div className="flex-1 text-[11px] leading-snug">
+              <span className="font-extrabold text-sky-900 block">Staf Sedang Menuju ke Meja Anda</span>
+              <span className="text-sky-700 font-medium text-[10.5px]">
+                Membawakan mesin EDC untuk memproses pembayaran kartu debit Anda. Silakan siapkan kartu Anda ya! 💳
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
