@@ -884,21 +884,21 @@ export async function POST(
             if (parts.length > 0) noteStr = ` (${parts.join(", ")})`;
           }
 
-          return `- ${ci.quantity}x ${displayName}${noteStr} (Rp ${(ci.subtotal || 0).toLocaleString("id-ID")})`;
+          return `- **${ci.quantity}x ${displayName}**${noteStr} (Rp ${(ci.subtotal || 0).toLocaleString("id-ID")})`;
         })
         .join("\n");
 
-      finalReplyContent = `Baik kak, pesanan untuk Meja ${tableNumber || "A1"} sudah dicatat:\n\n${fullItemsList}\n\nTotal: Rp ${(updatedCart.total || 0).toLocaleString("id-ID")} (sudah termasuk PB1 10%)\n\nAda menu lain yang ingin ditambah kak, atau sudah cukup ini saja? 😊`;
+      finalReplyContent = `Baik kak, pesanan untuk Meja ${tableNumber || "A1"} sudah dicatat:\n\n${fullItemsList}\n\nTotal: **Rp ${(updatedCart.total || 0).toLocaleString("id-ID")}** (sudah termasuk PB1 10%)\n\nAda menu lain yang ingin ditambah kak, atau sudah cukup ini saja? 😊`;
     }
 
     if (extraMetadata.orderConfirmed) {
       finalReplyContent = `Terima kasih banyak kak, pembayaran QRIS sebesar Rp ${(extraMetadata.orderConfirmed.total || 0).toLocaleString("id-ID")} sudah BERHASIL terverifikasi! Pesanan Meja ${tableNumber || "A1"} (${extraMetadata.orderConfirmed.orderNumber}) sudah resmi kami kirimkan ke tim Dapur & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
     }
 
-    // Strip any raw asterisks, markdown symbols or star emojis to prevent bot-like appearance
+    // Strip star emojis and stray single asterisks, but preserve **bold**
     finalReplyContent = finalReplyContent
-      .replace(/[*_~`]/g, "")
       .replace(/[✨⭐🌟]/g, "")
+      .replace(/(?<!\*)\*(?!\*)/g, "")
       .trim();
 
     // Save AI response message

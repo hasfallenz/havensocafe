@@ -372,6 +372,26 @@ export function capitalizeName(str: string): string {
     .join(" ");
 }
 
+const FOOD_DRINK_TERMS = new Set([
+  "makanan", "minuman", "makan", "minum", "food", "drink", "coffee", "kopi", "teh", "tea",
+  "ramen", "beef", "bowl", "chicken", "latte", "americano", "deh", "dong", "nih", "ya",
+  "aja", "saja", "an", "dan", "sama", "ada", "mau", "pesan", "pesanan", "menu", "order",
+  "ice", "iced", "panas", "hot", "porsi", "cup", "gelas", "lagi", "tambah", "cukup",
+  "udah", "sudah", "itu", "ini", "boleh", "kak", "kakak", "bang", "mas", "mba", "mbak"
+]);
+
+function isInvalidNameCandidate(str: string): boolean {
+  const lower = str.toLowerCase().trim();
+  if (lower.length < 2 || lower.length > 30) return true;
+  if (INDONESIAN_STOPWORDS.has(lower)) return true;
+  if (FOOD_DRINK_TERMS.has(lower)) return true;
+  if (SLANG_ALIASES[lower]) return true;
+  const words = lower.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length === 0) return true;
+  if (words.every((w) => FOOD_DRINK_TERMS.has(w) || INDONESIAN_STOPWORDS.has(w))) return true;
+  return false;
+}
+
 export function extractCustomerName(
   userMessage: string,
   messageHistory: MessageHistoryItem[] = []
@@ -379,22 +399,24 @@ export function extractCustomerName(
   if (!userMessage) return null;
   const clean = userMessage.trim();
 
-  // 1. Explicit pattern in current message: "atas nama [Name]", "a/n [Name]", "an [Name]", "a.n. [Name]"
-  const anMatch = clean.match(/(?:atas\s*nama|a\/n|an|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+  // 1. Explicit pattern in current message: "atas nama [Name]", "a/n [Name]", "a.n. [Name]", or "an: [Name]"
+  const anMatch =
+    clean.match(/\b(?:atas\s*nama|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
+    clean.match(/\ban\b\s*[:=]\s*([a-zA-Z\s]{2,35})/i);
   if (anMatch && anMatch[1]) {
     const rawName = anMatch[1].trim();
     const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
-    if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+    if (!isInvalidNameCandidate(filtered)) {
       return capitalizeName(filtered);
     }
   }
 
   // 2. Explicit pattern: "nama saya [Name]", "namaku [Name]", "nama gue/gw [Name]", "panggil [Name] aja"
-  const namaMatch = clean.match(/(?:nama\s*saya|namaku|nama\s*gw|nama\s*gue|panggil\s*aja|panggil\s*aku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+  const namaMatch = clean.match(/\b(?:nama\s*saya|namaku|nama\s*gw|nama\s*gue|panggil\s*aja|panggil\s*aku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
   if (namaMatch && namaMatch[1]) {
     const rawName = namaMatch[1].trim();
     const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
-    if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+    if (!isInvalidNameCandidate(filtered)) {
       return capitalizeName(filtered);
     }
   }
@@ -403,7 +425,7 @@ export function extractCustomerName(
   const introMatch = clean.match(/^(?:halo\s+|hai\s+)?(?:saya|aku|gw|gue)\s+([a-zA-Z]{2,20})\s+(?:mau|pesan|pesen|order)/i);
   if (introMatch && introMatch[1]) {
     const candidate = introMatch[1].trim();
-    if (!INDONESIAN_STOPWORDS.has(candidate.toLowerCase()) && !SLANG_ALIASES[candidate.toLowerCase()]) {
+    if (!isInvalidNameCandidate(candidate)) {
       return capitalizeName(candidate);
     }
   }
@@ -424,12 +446,7 @@ export function extractCustomerName(
           .replace(/^(atas nama|a\/n|an|a\.n\.?|nama saya|namaku|nama|kak|bang|mas|mba|mbak|pak|bu)\s*/gi, "")
           .replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "")
           .trim();
-        if (
-          filtered.length >= 2 &&
-          !INDONESIAN_STOPWORDS.has(filtered.toLowerCase()) &&
-          !SLANG_ALIASES[filtered.toLowerCase()] &&
-          matchMenuItem(filtered, []) === null
-        ) {
+        if (!isInvalidNameCandidate(filtered) && matchMenuItem(filtered, []) === null) {
           return capitalizeName(filtered);
         }
       }
@@ -439,10 +456,12 @@ export function extractCustomerName(
   // 5. Look backwards in messageHistory if already provided earlier
   for (const m of messageHistory) {
     if (m.senderType === "CUSTOMER") {
-      const histAn = m.content.match(/(?:atas\s*nama|a\/n|an|nama\s*saya|namaku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+      const histAn =
+        m.content.match(/\b(?:atas\s*nama|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
+        m.content.match(/\b(?:nama\s*saya|namaku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
       if (histAn && histAn[1]) {
         const filtered = histAn[1].replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "").trim();
-        if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+        if (!isInvalidNameCandidate(filtered)) {
           return capitalizeName(filtered);
         }
       }
@@ -738,17 +757,9 @@ export async function processHermesAgentRequest(
   // 7. MENU CATALOG & CULINARY INQUIRIES (Checked FIRST before greetings!)
   // ============================================================================
 
-  // 7A. Food Menu Inquiry (e.g. "makanan ada apa aja?", "menu makanan", "ada makanan apa", "makanan")
+  // 7A. Food Menu Inquiry (e.g. "makanan ada apa aja?", "menu makanan", "ada makanan apa", "sama makanan deh", "makanan")
   const isFoodMenuInquiry =
     /\b(makanan|makan|food|lauk|nasi|cemilan|snack)\b/i.test(lowerCheckMsg) &&
-    (lowerCheckMsg.includes("apa") ||
-      lowerCheckMsg.includes("ada") ||
-      lowerCheckMsg.includes("menu") ||
-      lowerCheckMsg.includes("daftar") ||
-      lowerCheckMsg.includes("pilihan") ||
-      lowerCheckMsg.includes("list") ||
-      lowerCheckMsg.trim() === "makanan" ||
-      lowerCheckMsg.trim() === "makan") &&
     !lowerCheckMsg.includes("tempat makan") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
@@ -768,14 +779,7 @@ export async function processHermesAgentRequest(
 
   // 7B. Coffee Menu Inquiry (e.g. "kopi ada apa aja?", "menu kopi", "ada kopi apa", "kopi")
   const isCoffeeMenuInquiry =
-    /\b(kopi|coffee|kopsu|espresso|americano|latte)\b/i.test(lowerCheckMsg) &&
-    (lowerCheckMsg.includes("apa") ||
-      lowerCheckMsg.includes("ada") ||
-      lowerCheckMsg.includes("menu") ||
-      lowerCheckMsg.includes("daftar") ||
-      lowerCheckMsg.includes("pilihan") ||
-      lowerCheckMsg.includes("list") ||
-      lowerCheckMsg.trim() === "kopi") &&
+    /\b(kopi|coffee|kopsu|espresso)\b/i.test(lowerCheckMsg) &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -792,17 +796,9 @@ export async function processHermesAgentRequest(
     };
   }
 
-  // 7C. Tea & Non-Coffee Drinks Inquiry (e.g. "minuman ada apa aja?", "menu teh", "non coffee apa aja")
+  // 7C. Tea & Non-Coffee Drinks Inquiry (e.g. "minuman ada apa aja?", "menu teh", "non coffee apa aja", "sama minuman deh")
   const isTeaOrDrinksMenuInquiry =
     /\b(minum|minuman|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(lowerCheckMsg) &&
-    (lowerCheckMsg.includes("apa") ||
-      lowerCheckMsg.includes("ada") ||
-      lowerCheckMsg.includes("menu") ||
-      lowerCheckMsg.includes("daftar") ||
-      lowerCheckMsg.includes("pilihan") ||
-      lowerCheckMsg.includes("list") ||
-      lowerCheckMsg.trim() === "minuman" ||
-      lowerCheckMsg.trim() === "minum") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -1217,10 +1213,10 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
    - Jika sejak awal pelanggan langsung menyebut nama dan metode bayar sekaligus (contoh: "Saya Dimas mau bayar debit"):
      * Langsung panggil request_debit_payment(customerName: "Dimas") tanpa bertanya ulang!
 
-10. ATURAN GAYA BAHASA (BEBAS DARI KESAN BOT / KAKU / TANDA BINTANG):
-   - JANGAN PERNAH gunakan tanda bintang asterisk (seperti **teks** atau *teks*) di dalam balasan chat!
-   - JANGAN gunakan emoji bintang seperti ✨, ⭐, 🌟. Gunakan emoji wajar seperti 😊, ☕, 🙏, 💳.
-   - Jangan gunakan format tabel markdown kaku atau rumus "PB1 (10%): Rp ...". Tulis dengan gaya santai dan ramah layaknya barista manusia asli di cafe modern.
+10. ATURAN GAYA BAHASA (RAMAH, BERKELAS, BEBAS DARI KESAN BOT):
+   - Gunakan format tebal markdown (contoh: **1x Americano**, **Rp 30.800**) khusus untuk nama menu pesanan dan total harga agar terlihat tegas dan rapi.
+   - JANGAN gunakan emoji bintang atau logo bintang seperti ✨, ⭐, 🌟. Gunakan emoji wajar seperti 😊, ☕, 🙏, 💳.
+   - JANGAN gunakan tanda bintang dekoratif bot liar. Berbicaralah santai, hangat, dan luwes selayaknya barista kafe profesional.
 
 DAFTAR KATALOG MENU RESMI PER KATEGORI:
 ${groupedCatalogText}
@@ -1723,11 +1719,19 @@ ${groupedCatalogText}
         finalReply = finalReply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
 
+      const lastAiMsg = [...recentHistory].reverse().find((m) => m.role === "assistant");
+      const isAnsweringNamePrompt =
+        lastAiMsg &&
+        (lastAiMsg.content.toLowerCase().includes("atas nama siapa") ||
+          lastAiMsg.content.toLowerCase().includes("nama siapa") ||
+          lastAiMsg.content.toLowerCase().includes("dengan kakak siapa") ||
+          lastAiMsg.content.toLowerCase().includes("pesanan ini atas nama siapa"));
+
       // If adding items, ensure the response is strictly about ordering and asks if there's any other menu:
       if (isAddingItem) {
         const addedItems = actions
           .filter((a) => a.type === "ADD_ITEM")
-          .map((a) => `${a.quantity || 1}x ${a.menuName}`)
+          .map((a) => `**${a.quantity || 1}x ${a.menuName}**`)
           .join(", ");
         finalReply = `Siap kak, pesanan ${addedItems} sudah ditambahkan ke pesanan Meja ${tableNum}. Ada menu lain yang ingin dipesan lagi kak, atau sudah cukup ini saja? 😊`;
       } else if (isProceedToPayment && !effectiveCustomerName) {
@@ -1738,7 +1742,7 @@ ${groupedCatalogText}
         !actions.some((a) => a.type === "SHOW_QRIS") &&
         !actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT") &&
         !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
-        (isProceedToPayment || (extractedName && context.currentCartItems && context.currentCartItems.length > 0))
+        (isProceedToPayment || isAnsweringNamePrompt)
       ) {
         // Customer name is known, now ask QRIS or Kartu Debit without fast buttons:
         finalReply = `Terima kasih Kak ${effectiveCustomerName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`;
@@ -1759,11 +1763,11 @@ ${groupedCatalogText}
           : `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja ${tableNum} hari ini?`;
       }
 
-      // Sanitize: strip any stray asterisks, markdown stars, or star emojis
+      // Sanitize: strip star emojis and stray single asterisks, but preserve **bold**
       if (finalReply) {
         finalReply = finalReply
-          .replace(/[*_~`]/g, "")
           .replace(/[✨⭐🌟]/g, "")
+          .replace(/(?<!\*)\*(?!\*)/g, "")
           .trim();
       }
 
