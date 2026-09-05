@@ -45,141 +45,334 @@ export interface CartItemContext {
 // 20 Canonical Active Menu Items with Rich Slang / Alias Dictionary
 export const SLANG_ALIASES: Record<string, string> = {
   // Coffee
-  amrik: "Americano",
   americano: "Americano",
+  amerikano: "Americano",
+  amerikan: "Americano",
+  amer: "Americano",
+  amrik: "Americano",
+  amrikn: "Americano",
+  amrcano: "Americano",
   "kopi amrik": "Americano",
   "es amrik": "Americano",
   "kopi hitam": "Americano",
+  "kopi pait": "Americano",
+  "kopi pahit": "Americano",
   black: "Americano",
   "black coffee": "Americano",
+  "es americano": "Americano",
+  "iced americano": "Americano",
+
   latte: "Latte",
   late: "Latte",
   latee: "Latte",
-  lateh: "Latte",
+  latter: "Latte",
+  latteh: "Latte",
+  latt: "Latte",
   "cafe latte": "Latte",
+  cafelatte: "Latte",
+  "cafe late": "Latte",
   "kopi susu": "Latte",
   kopsu: "Latte",
+  kopsusu: "Latte",
+  "es kopi susu": "Latte",
+  "es latte": "Latte",
+  "iced latte": "Latte",
+
   butterscotch: "Butterscotch Izanagi",
   buterskot: "Butterscotch Izanagi",
+  buterscott: "Butterscotch Izanagi",
+  butterscot: "Butterscotch Izanagi",
+  "buter skot": "Butterscotch Izanagi",
+  "buter skoc": "Butterscotch Izanagi",
+  "butter skot": "Butterscotch Izanagi",
+  "butter scotch": "Butterscotch Izanagi",
   butterskot: "Butterscotch Izanagi",
+  butterskotch: "Butterscotch Izanagi",
+  "buter scocth": "Butterscotch Izanagi",
   "butterscotch izanagi": "Butterscotch Izanagi",
   izanagi: "Butterscotch Izanagi",
+  "kopi izanagi": "Butterscotch Izanagi",
+  "kopi butterscotch": "Butterscotch Izanagi",
+
   hazelnut: "Hazelnut",
+  haselnut: "Hazelnut",
+  hezelnut: "Hazelnut",
+  hazelnutt: "Hazelnut",
+  hazlnut: "Hazelnut",
   "kopi hazelnut": "Hazelnut",
+  "kopi haselnut": "Hazelnut",
+  "kopi kacang": "Hazelnut",
+  "es hazelnut": "Hazelnut",
+  "iced hazelnut": "Hazelnut",
+
   moccacino: "Moccacino",
-  mocca: "Moccacino",
-  moca: "Moccacino",
+  mokacino: "Moccacino",
   mokasino: "Moccacino",
+  mocacino: "Moccacino",
+  mocasino: "Moccacino",
+  mokaccino: "Moccacino",
+  "moca cino": "Moccacino",
+  "moka cino": "Moccacino",
+  mocachino: "Moccacino",
+  mokachino: "Moccacino",
+  mocca: "Moccacino",
+  moka: "Moccacino",
+  moca: "Moccacino",
+  "kopi mocca": "Moccacino",
+  "kopi moka": "Moccacino",
+
   "caramel macchiato": "Caramel Macchiato",
+  "karamel macchiato": "Caramel Macchiato",
+  "karamel machiato": "Caramel Macchiato",
+  "karamel makiyato": "Caramel Macchiato",
+  "karamel makiatto": "Caramel Macchiato",
+  "caramel machiato": "Caramel Macchiato",
+  "caramel makiyato": "Caramel Macchiato",
+  "caramel makiato": "Caramel Macchiato",
+  "karamel makiato": "Caramel Macchiato",
   karamel: "Caramel Macchiato",
+  caramel: "Caramel Macchiato",
   macchiato: "Caramel Macchiato",
   machiato: "Caramel Macchiato",
-  "karamel macchiato": "Caramel Macchiato",
+  makiato: "Caramel Macchiato",
+  makiyato: "Caramel Macchiato",
+  "kopi karamel": "Caramel Macchiato",
 
   // Non-Coffee & Signature Drinks
   chocolate: "Chocolate Dark Of The Moon",
   coklat: "Chocolate Dark Of The Moon",
   cokelat: "Chocolate Dark Of The Moon",
+  choc: "Chocolate Dark Of The Moon",
+  choco: "Chocolate Dark Of The Moon",
   "dark of the moon": "Chocolate Dark Of The Moon",
+  "dark moon": "Chocolate Dark Of The Moon",
+  "dark of moon": "Chocolate Dark Of The Moon",
+  "dark chocolate": "Chocolate Dark Of The Moon",
+  "coklat pekat": "Chocolate Dark Of The Moon",
+  "coklat hitam": "Chocolate Dark Of The Moon",
+  "coklat dingin": "Chocolate Dark Of The Moon",
+  "iced chocolate": "Chocolate Dark Of The Moon",
+  "ice chocolate": "Chocolate Dark Of The Moon",
+  "es coklat": "Chocolate Dark Of The Moon",
+  "es cokelat": "Chocolate Dark Of The Moon",
   "chocolate dark of the moon": "Chocolate Dark Of The Moon",
+
   matcha: "Matcha The Greendez",
   maca: "Matcha The Greendez",
+  match: "Matcha The Greendez",
+  matca: "Matcha The Greendez",
   greentea: "Matcha The Greendez",
   "green tea": "Matcha The Greendez",
+  greendez: "Matcha The Greendez",
   "the greendez": "Matcha The Greendez",
+  "matcha latte": "Matcha The Greendez",
+  "es matcha": "Matcha The Greendez",
+  "ice matcha": "Matcha The Greendez",
+  "iced matcha": "Matcha The Greendez",
+  "maca greendez": "Matcha The Greendez",
   "matcha the greendez": "Matcha The Greendez",
+  "teh hijau": "Matcha The Greendez",
+
   avocado: "Avocado The Alive",
   alpukat: "Avocado The Alive",
+  alpukad: "Avocado The Alive",
+  avocad: "Avocado The Alive",
+  alpuket: "Avocado The Alive",
+  "avocado alive": "Avocado The Alive",
   "the alive": "Avocado The Alive",
+  "jus alpukat": "Avocado The Alive",
+  "juice alpukat": "Avocado The Alive",
+  "es alpukat": "Avocado The Alive",
   "avocado the alive": "Avocado The Alive",
+
   "red velvet": "Red Velvet Panamera",
   redvelvet: "Red Velvet Panamera",
   panamera: "Red Velvet Panamera",
+  "red velwet": "Red Velvet Panamera",
+  redvelpet: "Red Velvet Panamera",
+  "red velpet": "Red Velvet Panamera",
+  "red velved": "Red Velvet Panamera",
+  "red velvit": "Red Velvet Panamera",
+  "es red velvet": "Red Velvet Panamera",
+  "ice red velvet": "Red Velvet Panamera",
   "red velvet panamera": "Red Velvet Panamera",
+
   taro: "Taro Otseru",
   otseru: "Taro Otseru",
+  taroo: "Taro Otseru",
+  taru: "Taro Otseru",
+  "es taro": "Taro Otseru",
+  "ice taro": "Taro Otseru",
+  "iced taro": "Taro Otseru",
+  "taro latte": "Taro Otseru",
+  "taro otsuru": "Taro Otseru",
   "taro otseru": "Taro Otseru",
+
   "almond choco": "Almond Choco",
+  "almon choco": "Almond Choco",
+  "almond coklat": "Almond Choco",
+  "almon coklat": "Almond Choco",
+  "almond cokelat": "Almond Choco",
+  "almon cokelat": "Almond Choco",
+  "choco almond": "Almond Choco",
+  "coklat almond": "Almond Choco",
   almond: "Almond Choco",
   almon: "Almond Choco",
 
   // Tea Series
   "black tea": "Black Tea",
+  blacktea: "Black Tea",
+  "blek ti": "Black Tea",
+  blekti: "Black Tea",
   "teh hitam": "Black Tea",
   "teh original": "Black Tea",
   "teh tawar": "Black Tea",
   "teh manis": "Black Tea",
+  "es teh": "Black Tea",
+  "es teh tawar": "Black Tea",
+  "es teh manis": "Black Tea",
+  "es teh hitam": "Black Tea",
+
   "jasmine tea": "Jasmine Tea",
+  jasminetea: "Jasmine Tea",
+  "jasmin tea": "Jasmine Tea",
+  jasmin: "Jasmine Tea",
+  "jasmin ti": "Jasmine Tea",
   "teh melati": "Jasmine Tea",
+  "teh wangi": "Jasmine Tea",
   jasmine: "Jasmine Tea",
   melati: "Jasmine Tea",
+  "es teh melati": "Jasmine Tea",
+  "es jasmine tea": "Jasmine Tea",
+
   "lemon tea": "Lemon Tea",
+  lemontea: "Lemon Tea",
+  "lemon ti": "Lemon Tea",
+  lemonti: "Lemon Tea",
   "teh lemon": "Lemon Tea",
   lemon: "Lemon Tea",
+  "es lemon tea": "Lemon Tea",
+  "es teh lemon": "Lemon Tea",
+  "lemon tea dingin": "Lemon Tea",
+  "iced lemon tea": "Lemon Tea",
+
   "leci tea": "Leci Tea",
   "lychee tea": "Leci Tea",
+  "leci ti": "Leci Tea",
+  "lychee ti": "Leci Tea",
+  lycheetea: "Leci Tea",
+  lecitea: "Leci Tea",
   "teh leci": "Leci Tea",
+  "teh lychee": "Leci Tea",
   leci: "Leci Tea",
+  lychee: "Leci Tea",
+  "es teh leci": "Leci Tea",
+  "es leci": "Leci Tea",
+  "es lychee tea": "Leci Tea",
 
   // Food / Main Course
   beef: "Beef Bowl + Rice",
+  bif: "Beef Bowl + Rice",
   "beef bowl": "Beef Bowl + Rice",
+  "bif bowl": "Beef Bowl + Rice",
+  "bifbowl": "Beef Bowl + Rice",
+  beefbowl: "Beef Bowl + Rice",
+  "beef rice": "Beef Bowl + Rice",
+  "bif rice": "Beef Bowl + Rice",
   "beef bowl rice": "Beef Bowl + Rice",
   "beef bowl + rice": "Beef Bowl + Rice",
   "nasi sapi": "Beef Bowl + Rice",
   "rice bowl sapi": "Beef Bowl + Rice",
   "daging sapi": "Beef Bowl + Rice",
+  "nasi daging": "Beef Bowl + Rice",
+
   "chicken pop": "Chicken Popcorn Garlic Parmesan + Rice",
-  "chicken pop dong": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chiken pop": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ciken pop": "Chicken Popcorn Garlic Parmesan + Rice",
   "chick pop": "Chicken Popcorn Garlic Parmesan + Rice",
-  "popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
+  "cik pop": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chicken pop dong": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chiken pop dong": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ciken pop dong": "Chicken Popcorn Garlic Parmesan + Rice",
+  popcorn: "Chicken Popcorn Garlic Parmesan + Rice",
   "pop corn": "Chicken Popcorn Garlic Parmesan + Rice",
   "chicken popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chiken popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ciken popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
   "popcorn chicken": "Chicken Popcorn Garlic Parmesan + Rice",
+  "popcorn chiken": "Chicken Popcorn Garlic Parmesan + Rice",
+  "popcorn ciken": "Chicken Popcorn Garlic Parmesan + Rice",
   "chicken popcorn garlic parmesan": "Chicken Popcorn Garlic Parmesan + Rice",
   "chicken popcorn garlic parmesan + rice": "Chicken Popcorn Garlic Parmesan + Rice",
   "popcorn ayam": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ayam pop corn": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ayam popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
   "garlic parmesan": "Chicken Popcorn Garlic Parmesan + Rice",
+  "garlic parmesan chicken": "Chicken Popcorn Garlic Parmesan + Rice",
+  "ayam garlic": "Chicken Popcorn Garlic Parmesan + Rice",
+  ciken: "Chicken Popcorn Garlic Parmesan + Rice",
+  chiken: "Chicken Popcorn Garlic Parmesan + Rice",
+  chick: "Chicken Popcorn Garlic Parmesan + Rice",
   ayam: "Chicken Popcorn Garlic Parmesan + Rice",
+  "nasi ayam": "Chicken Popcorn Garlic Parmesan + Rice",
+
   scramble: "Scramble Egg + Rice",
   scrambled: "Scramble Egg + Rice",
+  skrembel: "Scramble Egg + Rice",
+  skrambel: "Scramble Egg + Rice",
+  scrambel: "Scramble Egg + Rice",
   "scramble egg": "Scramble Egg + Rice",
   "scrambled egg": "Scramble Egg + Rice",
+  "skrembel egg": "Scramble Egg + Rice",
+  "skrambel egg": "Scramble Egg + Rice",
+  "scrambel egg": "Scramble Egg + Rice",
+  "skrembel eg": "Scramble Egg + Rice",
+  "skrembel telur": "Scramble Egg + Rice",
   "scramble egg + rice": "Scramble Egg + Rice",
   "scrambled egg + rice": "Scramble Egg + Rice",
+  "egg rice": "Scramble Egg + Rice",
+  "scramble rice": "Scramble Egg + Rice",
   telur: "Scramble Egg + Rice",
   telor: "Scramble Egg + Rice",
   "nasi telur": "Scramble Egg + Rice",
   "nasi telor": "Scramble Egg + Rice",
   "telur orak arik": "Scramble Egg + Rice",
   "telor orak arik": "Scramble Egg + Rice",
+  "telor ceplok": "Scramble Egg + Rice",
+
   ramen: "Ramen",
+  ramenn: "Ramen",
+  raamen: "Ramen",
   "mie ramen": "Ramen",
+  "mi ramen": "Ramen",
+  "mie jepang": "Ramen",
   "ramen jepang": "Ramen",
   mie: "Ramen",
+  mi: "Ramen",
+  bakmi: "Ramen",
 };
 
 // Slang & Salutations Greetings List
 export const SLANG_GREETINGS = [
-  "hai", "halo", "helo", "hello", "hey", "hy", "der", "kuk", "kiw", "bro", "kak", "kakak",
-  "bang", "abang", "mas", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
+  "hai", "halo", "helo", "hello", "hey", "hy", "hlo", "hllo", "hallo", "hei", "der", "kuk", "kiw", "bro", "bray", "cuy", "kak", "kakk", "kakak", "ka", "kk",
+  "bang", "bangg", "abang", "bg", "mas", "mass", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
   "om", "tante", "bos", "boss", "pelayan", "karyawan", "staff", "waiter", "barista", "min", "admin",
-  "oi", "oit", "woi", "woy", "p", "pe", "ping", "tuan", "permisi", "punten", "sampurasun", "spada",
-  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "waalaikumsalam", "wa'alaikumsalam",
-  "pagi", "siang", "sore", "malam", "selamat", "tes", "test", "testing", "cek", "check"
+  "oi", "oit", "woi", "woy", "p", "pe", "poe", "ping", "pings", "tuan", "permisi", "misi", "punten", "sampurasun", "spada",
+  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "asalamualaikum", "aslm", "ass", "samlikum", "mikum", "waalaikumsalam", "wa'alaikumsalam",
+  "pagi", "pgi", "siang", "sore", "sre", "malam", "mlm", "malem", "selamat", "tes", "test", "testing", "cek", "check"
 ];
 
 export const TEST_WORDS = new Set([
-  "tes", "test", "testing", "ping", "p", "pe", "cek", "check", "nyoba", "nyobain", "coba", "123", "tes123", "test123"
+  "tes", "test", "testing", "ping", "p", "pe", "poe", "pings", "cek", "check", "nyoba", "nyobain", "coba", "123", "tes123", "test123"
 ]);
 
 export const SALUTATION_WORDS = new Set([
-  "hai", "halo", "helo", "hello", "hey", "hy", "der", "kuk", "kiw", "bro", "kak", "kakak",
-  "bang", "abang", "mas", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
+  "hai", "halo", "helo", "hello", "hey", "hy", "hlo", "hllo", "hallo", "hei", "der", "kuk", "kiw", "bro", "bray", "cuy", "kak", "kakk", "kakak", "ka", "kk",
+  "bang", "bangg", "abang", "bg", "mas", "mass", "mba", "mbak", "dek", "ade", "adek", "kids", "kidz", "bocil",
   "om", "tante", "bos", "boss", "pelayan", "karyawan", "staff", "waiter", "barista", "min", "admin",
-  "oi", "oit", "woi", "woy", "tuan", "permisi", "punten", "sampurasun", "spada",
-  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "waalaikumsalam", "wa'alaikumsalam",
-  "pagi", "siang", "sore", "malam", "selamat"
+  "oi", "oit", "woi", "woy", "p", "pe", "poe", "ping", "pings", "tuan", "permisi", "misi", "punten", "sampurasun", "spada",
+  "assalamualaikum", "assalamu'alaikum", "assalamu alaikum", "asalamualaikum", "aslm", "ass", "samlikum", "mikum", "waalaikumsalam", "wa'alaikumsalam",
+  "pagi", "pgi", "siang", "sore", "sre", "malam", "mlm", "malem", "selamat"
 ]);
 
 // Empathy / Distress / Curhat Keywords
@@ -299,8 +492,9 @@ export function matchMenuItem(
     if (matched) return matched;
   }
 
-  // 3. Whole-word match against Slang Dictionary
-  for (const [alias, canonicalName] of Object.entries(SLANG_ALIASES)) {
+  // 3. Whole-word match against Slang Dictionary (SORTED longest first so multi-word aliases match first)
+  const sortedAliases = Object.entries(SLANG_ALIASES).sort((a, b) => b[0].length - a[0].length);
+  for (const [alias, canonicalName] of sortedAliases) {
     const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${escapedAlias}($|\\s|[^a-zA-Z0-9])`, "i");
     if (regex.test(clean)) {
@@ -315,8 +509,9 @@ export function matchMenuItem(
   const byExactName = menuItems.find((m) => m.name.toLowerCase() === clean);
   if (byExactName) return byExactName;
 
-  // 5. Whole-word match against Menu Item Names
-  for (const item of menuItems) {
+  // 5. Whole-word match against Menu Item Names (SORTED longest first)
+  const sortedItems = [...menuItems].sort((a, b) => b.name.length - a.name.length);
+  for (const item of sortedItems) {
     const itemLower = item.name.toLowerCase();
     if (clean.includes(itemLower)) return item;
 
@@ -404,19 +599,22 @@ export function detectCustomizationIntent(userMessage: string): CustomizationExt
 
   // Sugar Level
   if (
-    /\b(less\s*sugar|less\s*manis|low\s*sugar|half\s*sugar)\b/i.test(lower) ||
-    /\bgula(?:nya|\s+nya)?\s*(?:less|dikit|sedikit|kurang|setengah|separuh|separo|50%|30%|25%|rendah)\b/i.test(lower) ||
-    /\b(?:dikit|sedikit|kurang|rendah)\s*gula\b/i.test(lower) ||
+    /\b(less\s*sugar|les\s*sugar|less\s*suger|les\s*suger|less\s*sug|les\s*sug|less\s*manis|les\s*manis|low\s*sugar|half\s*sugar)\b/i.test(lower) ||
+    /\bgula(?:nya|\s+nya)?\s*(?:less|les|dikit|sdikit|dkit|sedikit|kurang|kurangin|setengah|separuh|separo|50%|30%|25%|rendah)\b/i.test(lower) ||
+    /\b(?:dikit|sdikit|dkit|sedikit|kurang|kurangin|rendah)\s*gula\b/i.test(lower) ||
     /\bkurang(?:in)?\s*gula\b/i.test(lower) ||
-    /\bjangan\s*(?:terlalu\s*)?manis\b/i.test(lower) ||
-    /\b(?:gak|ga|tidak|tdk)\s*(?:terlalu|begitu)\s*manis\b/i.test(lower) ||
+    /\b(?:jangan|jgn)\s*(?:terlalu\s*|trlalu\s*)?manis\b/i.test(lower) ||
+    /\bjgn\s*manis\s*manis\b/i.test(lower) ||
+    /\bjgn\s*manis2\b/i.test(lower) ||
+    /\bjgn\s*kemanisan\b/i.test(lower) ||
+    /\b(?:gak|ga|gk|tidak|tdk)\s*(?:terlalu|trlalu|begitu|bgtu)\s*manis\b/i.test(lower) ||
     /\bagak\s*kurang\s*manis\b/i.test(lower)
   ) {
     notesParts.push("Less Sugar");
   } else if (
     /\b(no\s*sugar|zero\s*sugar|0%\s*sugar|sugar\s*free|bebas\s*gula|gula\s*nol)\b/i.test(lower) ||
-    /\btanpa\s*(?:gula|pemanis)\b/i.test(lower) ||
-    /\b(?:jangan|gak|ga|tidak|tdk)\s*(?:pake|pakai)?\s*gula\b/i.test(lower)
+    /\b(?:tanpa|tnpa)\s*(?:gula|pemanis)\b/i.test(lower) ||
+    /\b(?:jangan|jgn|gak|ga|gk|tidak|tdk)\s*(?:pake|pakai|pke|pkai)?\s*gula\b/i.test(lower)
   ) {
     notesParts.push("No Sugar");
   } else if (
@@ -426,12 +624,12 @@ export function detectCustomizationIntent(userMessage: string): CustomizationExt
   ) {
     notesParts.push("Normal Sugar");
   } else if (
-    /\b(extra\s*sugar|ekstra\s*sugar)\b/i.test(lower) ||
+    /\b(extra\s*sugar|ekstra\s*sugar|xtra\s*sugar)\b/i.test(lower) ||
     /\btambah(?:kan)?\s*gula\b/i.test(lower) ||
     /\blebih\s*manis\b/i.test(lower) ||
-    /\bmanis\s*(?:banget|pol|sekali)\b/i.test(lower) ||
+    /\bmanis\s*(?:banget|bgt|pol|sekali)\b/i.test(lower) ||
     /\bbanyak(?:in)?\s*gula\b/i.test(lower) ||
-    /\bgula(?:nya|\s+nya)?\s*banyak\b/i.test(lower)
+    /\bgula(?:nya|\s+nya)?\s*(?:banyak|byk)\b/i.test(lower)
   ) {
     notesParts.push("Extra Sugar");
   } else if (
@@ -443,18 +641,18 @@ export function detectCustomizationIntent(userMessage: string): CustomizationExt
 
   // Ice Level
   if (
-    /\b(less\s*ice|low\s*ice|half\s*ice)\b/i.test(lower) ||
-    /\bes(?:nya|\s+nya)?\s*(?:less|dikit|sedikit|kurang|separuh|setengah|separo)\b/i.test(lower) ||
-    /\b(?:dikit|sedikit|kurang)\s*es\b/i.test(lower) ||
+    /\b(less\s*ice|les\s*ice|less\s*ais|les\s*ais|low\s*ice|half\s*ice)\b/i.test(lower) ||
+    /\bes(?:nya|\s+nya)?\s*(?:less|les|dikit|sdikit|dkit|sedikit|kurang|kurangin|separuh|setengah|separo)\b/i.test(lower) ||
+    /\b(?:dikit|sdikit|dkit|sedikit|kurang)\s*es\b/i.test(lower) ||
     /\bkurang(?:in)?\s*es\b/i.test(lower) ||
-    /\bes(?:nya|\s+nya)?\s*jangan\s*banyak\b/i.test(lower) ||
-    /\bjangan\s*banyak\s*es\b/i.test(lower)
+    /\bes(?:nya|\s+nya)?\s*(?:jangan|jgn)\s*(?:banyak|byk)\b/i.test(lower) ||
+    /\b(?:jangan|jgn)\s*(?:banyak|byk)\s*es\b/i.test(lower)
   ) {
     notesParts.push("Less Ice");
   } else if (
     /\b(no\s*ice|zero\s*ice|0%\s*ice)\b/i.test(lower) ||
-    /\btanpa\s*es\b/i.test(lower) ||
-    /\b(?:jangan|gak|ga|tidak|tdk)\s*(?:pake|pakai)?\s*es\b/i.test(lower)
+    /\b(?:tanpa|tnpa)\s*es\b/i.test(lower) ||
+    /\b(?:jangan|jgn|gak|ga|gk|tidak|tdk)\s*(?:pake|pakai|pke|pkai)?\s*es\b/i.test(lower)
   ) {
     notesParts.push("No Ice");
   } else if (/\b(?:disajikan\s+|bikin\s+|minta\s+)?(?:panas|hot)\b/i.test(lower)) {
@@ -600,6 +798,7 @@ export function isInvalidNameCandidate(str: string): boolean {
   if (lower.length < 2 || lower.length > 30) return true;
   if (lower.includes("[") || lower.includes("]") || lower.includes("(") || lower.includes(")")) return true;
   if (/^(nama|name|namaaslipelanggan|namapelanggan|kak|kakak|unknown|anon|customer|user|pelanggan|none|null|undefined)$/i.test(lower)) return true;
+  if (/^(qris|qros|qriz|qriss|debit|debet|dbt|edc|kartu|krtu|card|bayar|byr|byar|cash|tunai|bca|mandiri|bri|bni)$/i.test(lower)) return true;
   if (INDONESIAN_STOPWORDS.has(lower)) return true;
   if (FOOD_DRINK_TERMS.has(lower)) return true;
   if (SLANG_ALIASES[lower]) return true;
@@ -623,23 +822,29 @@ export function extractCustomerName(
   if (!userMessage) return null;
   const clean = userMessage.trim();
 
-  // 1. Explicit pattern in current message: "atas nama [Name]", "a/n [Name]", "a.n. [Name]", or "an: [Name]"
+  // 1. Explicit pattern in current message: "atas nama [Name]", "ats nama", "a/n [Name]", "a.n. [Name]", or "an: [Name]"
   const anMatch =
-    clean.match(/\b(?:atas\s*nama|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
+    clean.match(/\b(?:atas\s*nama|ats\s*nama|atss\s*nama|atas\s*nm|ats\s*nm|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
     clean.match(/\ban\b\s*[:=]\s*([a-zA-Z\s]{2,35})/i);
   if (anMatch && anMatch[1]) {
     const rawName = anMatch[1].trim();
-    const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
+    const filtered = rawName
+      .replace(/\b(?:mau|mo|mw|bayar|byr|byar|via|lewat|pake|pke|pakai|pkai|qris|qros|qriz|debit|debet|dbt|edc|kartu|krtu)\b.*$/gi, "")
+      .replace(/\b(ya|kak|ka|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "")
+      .trim();
     if (!isInvalidNameCandidate(filtered)) {
       return capitalizeName(filtered);
     }
   }
 
-  // 2. Explicit pattern: "nama saya [Name]", "namaku [Name]", "nama gue/gw [Name]", "panggil [Name] aja"
-  const namaMatch = clean.match(/\b(?:nama\s*saya|namaku|nama\s*gw|nama\s*gue|panggil\s*aja|panggil\s*aku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+  // 2. Explicit pattern: "nama saya [Name]", "namaku [Name]", "nm saya [Name]", "nama gue/gw [Name]", "panggil [Name] aja"
+  const namaMatch = clean.match(/\b(?:nama\s*saya|namaku|nm\s*saya|nm\s*sy|nama\s*sy|nmku|nma\s*saya|nma|nama\s*gw|nama\s*gue|panggil\s*aja|panggil\s*aku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
   if (namaMatch && namaMatch[1]) {
     const rawName = namaMatch[1].trim();
-    const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
+    const filtered = rawName
+      .replace(/\b(?:mau|mo|mw|bayar|byr|byar|via|lewat|pake|pke|pakai|pkai|qris|qros|qriz|debit|debet|dbt|edc|kartu|krtu)\b.*$/gi, "")
+      .replace(/\b(ya|kak|ka|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "")
+      .trim();
     if (!isInvalidNameCandidate(filtered)) {
       return capitalizeName(filtered);
     }
@@ -665,10 +870,11 @@ export function extractCustomerName(
       lastAiLower.includes("pesanan ini atas nama siapa")
     ) {
       const words = clean.split(/\s+/).filter((w) => w.length > 0);
-      if (words.length >= 1 && words.length <= 4) {
+      if (words.length >= 1 && words.length <= 6) {
         const filtered = clean
-          .replace(/^(atas nama|a\/n|an|a\.n\.?|nama saya|namaku|nama|kak|bang|mas|mba|mbak|pak|bu)\s*/gi, "")
-          .replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "")
+          .replace(/^(?:atas\s*nama|ats\s*nama|atas\s*nm|ats\s*nm|a\/n|an|a\.n\.?|nama\s*saya|nm\s*saya|nm\s*sy|nama\s*sy|namaku|nmku|nma|nama|kak|ka|bang|mas|mba|mbak|pak|bu)\b\s*/gi, "")
+          .replace(/\b(?:mau|mo|mw|bayar|byr|byar|via|lewat|pake|pke|pakai|pkai|qris|qros|qriz|debit|debet|dbt|edc|kartu|krtu)\b.*$/gi, "")
+          .replace(/\b(ya|kak|ka|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "")
           .trim();
         if (!isInvalidNameCandidate(filtered) && matchMenuItem(filtered, []) === null) {
           return capitalizeName(filtered);
@@ -681,10 +887,13 @@ export function extractCustomerName(
   for (const m of messageHistory) {
     if (m.senderType === "CUSTOMER") {
       const histAn =
-        m.content.match(/\b(?:atas\s*nama|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
-        m.content.match(/\b(?:nama\s*saya|namaku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+        m.content.match(/\b(?:atas\s*nama|ats\s*nama|atss\s*nama|atas\s*nm|ats\s*nm|a\/n|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i) ||
+        m.content.match(/\b(?:nama\s*saya|namaku|nm\s*saya|nm\s*sy|nama\s*sy|nmku|nma\s*saya|nma|nama\s*gw|nama\s*gue|panggil\s*aja)\s*:?\s*([a-zA-Z\s]{2,35})/i);
       if (histAn && histAn[1]) {
-        const filtered = histAn[1].replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "").trim();
+        const filtered = histAn[1]
+          .replace(/\b(?:mau|mo|mw|bayar|byr|byar|via|lewat|pake|pke|pakai|pkai|qris|qros|qriz|debit|debet|dbt|edc|kartu|krtu)\b.*$/gi, "")
+          .replace(/\b(ya|kak|ka|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "")
+          .trim();
         if (!isInvalidNameCandidate(filtered)) {
           return capitalizeName(filtered);
         }
@@ -970,7 +1179,8 @@ export async function processHermesAgentRequest(
 
   // 6B. Direct Payment Method Selection (DEBIT / EDC)
   const isPureDebit =
-    /^(debit|kartu\s*debit|kartu|card|debet|edc|mesin\s*edc|gesek|gesek\s*kartu|pake\s*debit|pakai\s*debit|debit\s*aja|bayar\s*debit|bayar\s*pakai\s*debit|bayar\s*pake\s*debit)$/i.test(lowerCheckMsg);
+    /^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+)?(debit|debet|dbt|kartu\s*debit|kartu\s*debet|krtu\s*debit|krtu\s*debet|kartu|krtu|card|edc|mesin\s*edc|msin\s*edc|gesek|gesek\s*kartu|kartu\s*gesek|kartu\s*kredit)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
+    (/\b(debit|debet|dbt|kartu\s*debit|edc|mesin\s*edc|gesek)\b/i.test(lowerCheckMsg) && !/\b(qris|qros|qriz|barcode|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !!extractedName);
 
   if (isPureDebit && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -991,7 +1201,8 @@ export async function processHermesAgentRequest(
 
   // 6C. Direct Payment Method Selection (QRIS)
   const isPureQris =
-    /^(qris|barcode|scan|scan\s*barcode|qris\s*aja|pake\s*qris|pakai\s*qris|bayar\s*qris|tampilin\s*qris|tampilkan\s*qris|bayar\s*pakai\s*qris|bayar\s*pake\s*qris)$/i.test(lowerCheckMsg);
+    /^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+|minta\s+|tampilin\s+|tampilkan\s+|tunjukin\s+|tunjukkin\s+|liat\s+)?(qris|qros|qriz|qriss|barcode|barcod|barkod|barkode|scan|skan|scan\s*barcode|skan\s*barcode|scan\s*qris|skan\s*qris|barcode\s*qris)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
+    (/\b(qris|qros|qriz|qriss|barcode|barcod|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(debit|debet|edc)\b/i.test(lowerCheckMsg) && !!extractedName);
 
   if (isPureQris && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -1040,9 +1251,9 @@ export async function processHermesAgentRequest(
     };
   }
 
-  // 6E. Customer Checkout / Finished Ordering ("udah itu aja", "cukup", "bayar", "checkout")
+  // 6E. Customer Checkout / Finished Ordering ("udah itu aja", "uda itu aj", "cukup", "bayar", "checkout", "beres", "kelar")
   const isPureCheckout =
-    /^(udah\s*itu\s*aja|udah\s*itu\s*aja\s*dah|itu\s*aja|itu\s*aja\s*dah|cukup|sudah\s*cukup|udah\s*cukup|cukup\s*itu\s*aja|ga\s*ada\s*lagi|gak\s*ada\s*lagi|udah\s*pas|sudah\s*pas|udah\s*sesuai|sudah\s*sesuai|mau\s*bayar|lanjut\s*bayar|siap\s*bayar|checkout|gas|gass|gaskeun|lanjut)$/i.test(lowerCheckMsg);
+    /^(udah\s*itu\s*aja|uda\s*itu\s*aja|udh\s*itu\s*aja|dah\s*itu\s*aja|udah\s*itu\s*aj|uda\s*itu\s*aj|udh\s*itu\s*aj|dah\s*itu\s*aj|udah\s*itu\s*ajah|udh\s*itu\s*ajah|itu\s*aja|itu\s*aj|itu\s*ajah|itu\s*aja\s*dah|itu\s*aj\s*deh|udah\s*aja|uda\s*aja|udh\s*aja|dah\s*aja|cukup|ckup|ckp|sudah\s*cukup|udah\s*cukup|uda\s*cukup|udh\s*cukup|dah\s*cukup|cukup\s*itu\s*aja|cukup\s*ya|cukup\s*deh|cukup\s*kak|cukup\s*min|ckup\s*kak|ckup\s*min|ga\s*ada\s*lagi|gak\s*ada\s*lagi|gk\s*ada\s*lagi|ga\s*ada\s*lg|gak\s*ada\s*lg|gk\s*ada\s*lg|udah\s*pas|uda\s*pas|udh\s*pas|sudah\s*pas|pas\s*kak|pas\s*min|udah\s*sesuai|uda\s*sesuai|sudah\s*sesuai|mau\s*bayar|mo\s*bayar|mw\s*bayar|mau\s*byr|mo\s*byr|mw\s*byr|lanjut\s*bayar|langsung\s*bayar|siap\s*bayar|checkout|cekout|gas|gass|gaskeun|lanjut|beres|udah\s*beres|uda\s*beres|udh\s*beres|beres\s*kak|beres\s*min|kelar|udah\s*kelar|uda\s*kelar|udh\s*kelar|kelar\s*kak|kelar\s*min|itu\s*doang|udh\s*itu\s*doang|uda\s*itu\s*doang|udah\s*itu\s*doang|dah\s*itu\s*doang|segitu\s*aja|segitu\s*aj|sgitu\s*aja|sgitu\s*aj|sgtu\s*aja|udah\s*min|udah\s*kak|udh\s*min|udh\s*kak|uda\s*min|uda\s*kak)$/i.test(lowerCheckMsg);
 
   if (isPureCheckout && context.currentCartItems && context.currentCartItems.length > 0) {
     const knownName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -1079,7 +1290,7 @@ export async function processHermesAgentRequest(
 
   // 7A. Food Menu Inquiry (e.g. "makanan ada apa aja?", "menu makanan", "ada makanan apa", "sama makanan deh", "makanan")
   const isFoodMenuInquiry =
-    /\b(makanan|makan|food|lauk|nasi|cemilan|snack)\b/i.test(lowerCheckMsg) &&
+    /\b(makanan|makan|mkanan|mknan|food|lauk|nasi|cemilan|snack)\b/i.test(lowerCheckMsg) &&
     !lowerCheckMsg.includes("tempat makan") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
@@ -1099,7 +1310,7 @@ export async function processHermesAgentRequest(
 
   // 7B. Coffee Menu Inquiry (e.g. "kopi ada apa aja?", "menu kopi", "ada kopi apa", "kopi")
   const isCoffeeMenuInquiry =
-    /\b(kopi|coffee|kopsu|espresso)\b/i.test(lowerCheckMsg) &&
+    /\b(kopi|coffee|kopsu|espresso|kpi)\b/i.test(lowerCheckMsg) &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -1118,7 +1329,7 @@ export async function processHermesAgentRequest(
 
   // 7C. Tea & Non-Coffee Drinks Inquiry (e.g. "minuman ada apa aja?", "menu teh", "non coffee apa aja", "sama minuman deh")
   const isTeaOrDrinksMenuInquiry =
-    /\b(minum|minuman|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(lowerCheckMsg) &&
+    /\b(minum|minuman|mnuman|mnum|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(lowerCheckMsg) &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -1137,7 +1348,7 @@ export async function processHermesAgentRequest(
 
   // 7D. All Menu Catalog Inquiry (e.g. "menu apa aja?", "ada apa aja y?", "daftar menu", "lihat menu", "spill menu")
   const isAllMenuRegex =
-    /^(?:halo\s+|hai\s+|p\s+|pe\s+|permisi\s+|misi\s+|ka\s+|kak\s+|min\s+|bang\s+)?(ada\s+(?:apaan|apa\s*aja|apa\s*saja|menu\s*apa\s*aja|menu\s*apa)|menu\s*apa\s*aja|daftar\s*menu|lihat\s*menu|buku\s*menu|list\s*menu|pilihan\s*menu|spill\s*menu|ada\s*apa)(\s+nih|\s+ya|\s+y|\s+kak|\s+ka|\s+bang|\s+min|\s+deh|\s+dong|\s+di\s*sini|\s+disini)?\??$/i;
+    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|permisi\s+|misi\s+|ka\s+|kak\s+|min\s+|bang\s+|mas\s+|mba\s+|bro\s+)?(ada\s+(?:apaan|apa\s*aja|apa\s*aj|apa\s*saja|menu\s*apa\s*aja|menu\s*apa\s*aj|menu\s*apa)|menu(?:nya|\s+nya)?\s*(?:apa\s*aja|apa\s*aj|apa)|(?:daftar|lihat|liat|buku|list|pilihan|spill|minta)\s*(?:daftar\s*)?menu(?:nya|\s+nya)?|ready\s*(?:apa\s*aja|apa\s*aj)|rdy\s*(?:apa\s*aja|apa\s*aj)|apa\s*aja\s*(?:yang\s+|yg\s+)?(?:ada|ready|tersedia)|ada\s*apa)(\s+nih|\s+ya|\s+y|\s+sih|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+deh|\s+dong|\s+dng|\s+di\s*sini|\s+disini)?\??$/i;
 
   const isAllMenuInquiry =
     (isAllMenuRegex.test(lowerCheckMsg) ||
@@ -1148,7 +1359,13 @@ export async function processHermesAgentRequest(
       lowerCheckMsg === "ada apa aja y" ||
       lowerCheckMsg === "ada apa aja y?" ||
       lowerCheckMsg === "ada apa aja ya" ||
-      lowerCheckMsg === "ada apa aja ya?") &&
+      lowerCheckMsg === "ada apa aja ya?" ||
+      lowerCheckMsg === "ada apa aj" ||
+      lowerCheckMsg === "ada apa aj?" ||
+      lowerCheckMsg === "ada apa aj y" ||
+      lowerCheckMsg === "ada apa aj y?" ||
+      lowerCheckMsg === "ready apa aja" ||
+      lowerCheckMsg === "rdy apa aja") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
@@ -1166,9 +1383,10 @@ export async function processHermesAgentRequest(
   }
 
   // ============================================================================
-  // 8. GENERAL ORDER INTENT ("mau pesen", "mo pesen", "mw pesen", "mau pesn dong", "bisa pesen?", etc.)
+  // 8. GENERAL ORDER INTENT ("mau pesen", "mo pesen", "mw pesen", "psn dong", "bisa order", etc.)
   // ============================================================================
-  const orderPhraseRegex = /^(halo\s+|hai\s+|p\s+|pe\s+|bang\s+|kak\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+)?(mau|mo|mw|pengen|pingin|ingin|bisa|tolong|mari)?\s*(pesen|pesan|pesn|order|beli)(\s+dong|\s+ya|\s+kak|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+ngga|\s+bisa|\s+dulu)?$/i;
+  const orderPhraseRegex =
+    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|bang\s+|kak\s+|ka\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+|misi\s+|permisi\s+)?(mau|mo|mw|pengen|pngen|pngn|pingin|ingin|bisa|bs|tolong|mari)?\s*(pesen|pesan|pesn|psen|psn|pezen|order|ordr|odr|beli|bli|ngorder)(\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+gk|\s+ngga|\s+bisa|\s+dulu)?\??$/i;
 
   const isGeneralOrderIntent =
     (orderPhraseRegex.test(lowerCheckMsg) ||
@@ -1179,13 +1397,22 @@ export async function processHermesAgentRequest(
       lowerCheckMsg === "mau pesen" ||
       lowerCheckMsg === "mau pesan" ||
       lowerCheckMsg === "mau pesn" ||
+      lowerCheckMsg === "mau psn" ||
+      lowerCheckMsg === "mau psen" ||
+      lowerCheckMsg === "mo psn" ||
+      lowerCheckMsg === "mw psn" ||
       lowerCheckMsg === "mau pesn dong" ||
+      lowerCheckMsg === "psn dong" ||
+      lowerCheckMsg === "psen dong" ||
       lowerCheckMsg === "pesen dong" ||
       lowerCheckMsg === "pesan dong" ||
       lowerCheckMsg === "pesen" ||
       lowerCheckMsg === "pesan" ||
       lowerCheckMsg === "pesn" ||
-      lowerCheckMsg === "order") &&
+      lowerCheckMsg === "psen" ||
+      lowerCheckMsg === "psn" ||
+      lowerCheckMsg === "order" ||
+      lowerCheckMsg === "ngorder") &&
     matchMenuItem(lowerCheckMsg, menuItems) === null;
 
   if (isGeneralOrderIntent) {
@@ -1271,7 +1498,7 @@ export async function processHermesAgentRequest(
 
   if (isDevInquiry) {
     return {
-      reply: `Website dan platform Smart Waiter Havenso Cafe ini dikembangkan oleh **NextSantaa** ✨.\n\nAda menu kopi, minuman segar, atau makanan lezat yang ingin kakak pesan hari ini? 😊`,
+      reply: `Website dan platform Smart Waiter Havenso Cafe ini dikembangkan oleh **NextSantaa**.\n\nAda menu kopi, minuman segar, atau makanan lezat yang ingin kakak pesan hari ini? 😊`,
       actions: [],
       intent: "DEVELOPER_INFO",
     };
@@ -1285,26 +1512,43 @@ export async function processHermesAgentRequest(
     lowerCheckMsg.includes("pesenan saya") ||
     lowerCheckMsg.includes("pesenan gw") ||
     lowerCheckMsg.includes("pesenan gue") ||
+    lowerCheckMsg.includes("psnan saya") ||
+    lowerCheckMsg.includes("psnan gw") ||
     lowerCheckMsg.includes("pesanan tadi") ||
     lowerCheckMsg.includes("pesenan tadi") ||
+    lowerCheckMsg.includes("psnan tadi") ||
     lowerCheckMsg.includes("tadi pesen apa") ||
     lowerCheckMsg.includes("tadi pesan apa") ||
+    lowerCheckMsg.includes("tdi pesen apa") ||
     lowerCheckMsg.includes("tadi pesenan apa") ||
     lowerCheckMsg.includes("tadi pesanan apa") ||
     lowerCheckMsg.includes("tadi pesenan saya") ||
     lowerCheckMsg.includes("tadi pesanan saya") ||
     lowerCheckMsg.includes("udah pesen apa") ||
     lowerCheckMsg.includes("udah pesan apa") ||
+    lowerCheckMsg.includes("uda pesen apa") ||
+    lowerCheckMsg.includes("udh pesen apa") ||
     lowerCheckMsg.includes("lihat pesanan") ||
+    lowerCheckMsg.includes("liat pesanan") ||
     lowerCheckMsg.includes("cek pesanan") ||
+    lowerCheckMsg.includes("cek psnan") ||
     lowerCheckMsg.includes("daftar pesanan") ||
     lowerCheckMsg.includes("keranjang saya") ||
+    lowerCheckMsg.includes("kranjang saya") ||
+    lowerCheckMsg.includes("cek keranjang") ||
+    lowerCheckMsg.includes("cek kranjang") ||
+    lowerCheckMsg.includes("cek cart") ||
+    lowerCheckMsg.includes("liat cart") ||
+    lowerCheckMsg.includes("lihat cart") ||
+    lowerCheckMsg.includes("isi cart") ||
     lowerCheckMsg.includes("apa aja yang dipesan") ||
     lowerCheckMsg.includes("pesanan gw apa") ||
     lowerCheckMsg.includes("pesenan gw apa") ||
     lowerCheckMsg.includes("pesanan apa aja") ||
     lowerCheckMsg.includes("pesenan apa aja") ||
-    lowerCheckMsg.includes("isi keranjang");
+    lowerCheckMsg.includes("psnan apa aja") ||
+    lowerCheckMsg.includes("isi keranjang") ||
+    lowerCheckMsg.includes("isi kranjang");
 
   if (isCartInquiry) {
     if (context.currentCartItems && context.currentCartItems.length > 0) {
@@ -1399,7 +1643,7 @@ export async function processHermesAgentRequest(
     const itemName = matchedMenu?.name || "Menu";
 
     return {
-      reply: `Baik kak, pesanan **${itemName}** untuk Meja **${tableNum}** sudah saya perbarui menjadi **${targetQuantity}x porsi** ✨.\n\nApakah pesanannya sudah pas, atau ada menu lain yang ingin ditambah? 😊`,
+      reply: `Baik kak, pesanan **${itemName}** untuk Meja **${tableNum}** sudah saya perbarui menjadi **${targetQuantity}x porsi**.\n\nApakah pesanannya sudah pas, atau ada menu lain yang ingin ditambah? 😊`,
       actions: [
         {
           type: "CUSTOMIZE_ITEM",
@@ -1412,7 +1656,86 @@ export async function processHermesAgentRequest(
     };
   }
 
+  // ============================================================================
+  // 17. DIRECT MENU ORDER INTENT (Fast deterministic path for unambiguous orders)
+  // ============================================================================
+  const isQuestionOrInquiry =
+    lowerCheckMsg.includes("?") ||
+    /\b(apa|gimana|berapa|mana|siapa|kenapa|apakah|bisa\s+gak|bisa\s+ngga|bisa\s+ga)\b/i.test(lowerCheckMsg) ||
+    /\b(rekomen|rekomendasi|enak|cocok|favorit|saran|pilihan|best\s*seller)\b/i.test(lowerCheckMsg) ||
+    /\b(resep|bumbu|rahasia|omset|politik|agama)\b/i.test(lowerCheckMsg);
 
+  if (!isQuestionOrInquiry) {
+    // Split user message by conjunctions to support single or multiple ordered items
+    const segments = lowerCheckMsg
+      .split(/\b(?:dan|sama|sm|plus|trus|terus|skalian|sekalian)\b|,|\n/i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const detectedOrders: { item: MenuItemData; quantity: number; notes?: string }[] = [];
+
+    for (const seg of segments) {
+      const item = matchMenuItem(seg, menuItems);
+      if (item) {
+        let qty = 1;
+        const qtyMatch = seg.match(/\b(\d+)\s*(?:porsi|cup|gelas|piring|buah|biji|pcs|pc|x)?\b/i);
+        if (qtyMatch && parseInt(qtyMatch[1], 10) > 0 && parseInt(qtyMatch[1], 10) <= 20) {
+          qty = parseInt(qtyMatch[1], 10);
+        } else if (/\b(?:dua|2)\b/i.test(seg)) {
+          qty = 2;
+        } else if (/\b(?:tiga|3)\b/i.test(seg)) {
+          qty = 3;
+        } else if (/\b(?:empat|4)\b/i.test(seg)) {
+          qty = 4;
+        } else if (/\b(?:lima|5)\b/i.test(seg)) {
+          qty = 5;
+        }
+
+        const customObj = detectCustomizationIntent(seg);
+        detectedOrders.push({
+          item,
+          quantity: qty,
+          notes: customObj.notes,
+        });
+      }
+    }
+
+    if (detectedOrders.length > 0) {
+      // Check stock availability
+      for (const ord of detectedOrders) {
+        const isAvailable = ord.item.isAvailable && (ord.item.stock === undefined || ord.item.stock > 0);
+        if (!isAvailable) {
+          return {
+            reply: `Mohon maaf sekali ya kak, untuk menu **${ord.item.name}** saat ini sedang **Habis (Out of Stock)** di dapur kami 🙏.\n\nSebagai gantinya, kami sangat merekomendasikan menu sejenis lainnya yang tersedia. Mau saya pesankan yang lain kak? 😊`,
+            actions: [],
+            intent: "ITEM_OUT_OF_STOCK",
+          };
+        }
+      }
+
+      const actions: AgentAction[] = detectedOrders.map((ord) => ({
+        type: "ADD_ITEM",
+        menuItemId: ord.item.id,
+        menuName: ord.item.name,
+        quantity: ord.quantity,
+        notes: ord.notes,
+        customizations: ord.notes ? { notes: ord.notes } : undefined,
+      }));
+
+      const addedListStr = detectedOrders
+        .map((ord) => {
+          const noteText = ord.notes ? ` (${ord.notes})` : "";
+          return `**${ord.quantity}x ${ord.item.name}**${noteText}`;
+        })
+        .join(", ");
+
+      return {
+        reply: `Siap kak, pesanan ${addedListStr} sudah ditambahkan ke pesanan Meja ${tableNum}. Ada menu lain yang ingin dipesan lagi kak, atau sudah cukup ini saja? 😊`,
+        actions,
+        intent: "ADD_ITEM",
+      };
+    }
+  }
 
   const baseUrl = (process.env.AI_BASE_URL || "http://127.0.0.1:8642/v1").replace(/\/+$/, "");
   const apiKey =
@@ -1965,23 +2288,44 @@ ${groupedCatalogText}
         context.paymentVerified ||
         lowerMsg.includes("sudah bayar") ||
         lowerMsg.includes("udah bayar") ||
+        lowerMsg.includes("uda bayar") ||
+        lowerMsg.includes("udh bayar") ||
+        lowerMsg.includes("dah bayar") ||
+        lowerMsg.includes("sdh bayar") ||
+        lowerMsg.includes("sudah byr") ||
+        lowerMsg.includes("udah byr") ||
         lowerMsg.includes("sudah transfer") ||
         lowerMsg.includes("udah transfer") ||
+        lowerMsg.includes("uda transfer") ||
+        lowerMsg.includes("udh transfer") ||
+        lowerMsg.includes("dah transfer") ||
         lowerMsg.includes("verifikasi pembayaran") ||
         lowerMsg.includes("memverifikasi pembayaran");
 
       const isDebitIntent =
         lowerMsg.includes("debit") ||
+        lowerMsg.includes("debet") ||
+        lowerMsg.includes("dbt") ||
         lowerMsg.includes("kartu debit") ||
+        lowerMsg.includes("kartu debet") ||
+        lowerMsg.includes("krtu debit") ||
+        lowerMsg.includes("krtu debet") ||
         lowerMsg.includes("edc") ||
         lowerMsg.includes("mesin edc") ||
+        lowerMsg.includes("msin edc") ||
         lowerMsg.includes("gesek") ||
         lowerMsg.includes("kartu");
 
       const isQrisIntent =
         lowerMsg.includes("qris") ||
+        lowerMsg.includes("qros") ||
+        lowerMsg.includes("qriz") ||
+        lowerMsg.includes("qriss") ||
         lowerMsg.includes("barcode") ||
-        lowerMsg.includes("scan");
+        lowerMsg.includes("barcod") ||
+        lowerMsg.includes("barkod") ||
+        lowerMsg.includes("scan") ||
+        lowerMsg.includes("skan");
 
       const rawCustomerName =
         actions.find((a) => a.customerName)?.customerName ||
@@ -2021,27 +2365,59 @@ ${groupedCatalogText}
           lowerMsg === "gaskeun" ||
           lowerMsg === "lanjut" ||
           lowerMsg === "bayar" ||
+          lowerMsg === "byr" ||
           lowerMsg === "checkout" ||
+          lowerMsg === "cekout" ||
           lowerMsg === "udah pas" ||
+          lowerMsg === "uda pas" ||
+          lowerMsg === "udh pas" ||
+          lowerMsg === "pas" ||
           lowerMsg === "udah sesuai" ||
+          lowerMsg === "uda sesuai" ||
           lowerMsg === "sudah sesuai" ||
           lowerMsg === "siap bayar" ||
           lowerMsg === "udah itu aja" ||
-          lowerMsg === "udah itu aja dah" ||
+          lowerMsg === "uda itu aja" ||
+          lowerMsg === "udh itu aja" ||
+          lowerMsg === "dah itu aja" ||
+          lowerMsg === "udah itu aj" ||
+          lowerMsg === "uda itu aj" ||
+          lowerMsg === "udh itu aj" ||
+          lowerMsg === "dah itu aj" ||
           lowerMsg === "itu aja" ||
-          lowerMsg === "itu aja dah" ||
+          lowerMsg === "itu aj" ||
+          lowerMsg === "itu ajah" ||
+          lowerMsg === "itu doang" ||
           lowerMsg === "cukup" ||
+          lowerMsg === "ckup" ||
+          lowerMsg === "ckp" ||
           lowerMsg === "sudah cukup" ||
           lowerMsg === "udah cukup" ||
+          lowerMsg === "uda cukup" ||
+          lowerMsg === "udh cukup" ||
+          lowerMsg === "beres" ||
+          lowerMsg === "kelar" ||
           lowerMsg.includes("mau bayar") ||
+          lowerMsg.includes("mo bayar") ||
+          lowerMsg.includes("mw bayar") ||
+          lowerMsg.includes("mau byr") ||
           lowerMsg.includes("bayar qris") ||
           lowerMsg.includes("tampilin qris") ||
           lowerMsg.includes("udah itu aja") ||
+          lowerMsg.includes("uda itu aja") ||
+          lowerMsg.includes("udh itu aja") ||
           lowerMsg.includes("itu aja") ||
+          lowerMsg.includes("itu aj") ||
           lowerMsg.includes("cukup itu aja") ||
           lowerMsg.includes("sudah cukup") ||
           lowerMsg.includes("ga ada lagi") ||
-          lowerMsg.includes("gak ada lagi")) &&
+          lowerMsg.includes("gak ada lagi") ||
+          lowerMsg.includes("gk ada lagi") ||
+          lowerMsg.includes("ga ada lg") ||
+          lowerMsg.includes("gak ada lg") ||
+          lowerMsg.includes("segitu aja") ||
+          lowerMsg.includes("sgitu aja") ||
+          lowerMsg.includes("itu doang")) &&
         context.currentCartItems &&
         context.currentCartItems.length > 0;
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { processHermesAgentRequest } from "@/lib/hermes-agent";
+import { processHermesAgentRequest, matchMenuItem } from "@/lib/hermes-agent";
 import { eventBus } from "@/lib/events";
 import { ensureDatabaseSeeded } from "@/lib/seed-data";
 
@@ -241,7 +241,8 @@ export async function POST(
           (act.menuItemId && act.menuItemId !== "custom-item" ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
           (mName ? allMenuItems.find((m) => m.name.toLowerCase() === mName) : null) ||
           (mName && mName.length >= 3 ? allMenuItems.find((m) => m.name.toLowerCase().includes(mName)) : null) ||
-          (act.menuItemId ? allMenuItems.find((m) => m.name.toLowerCase() === String(act.menuItemId).toLowerCase()) : null);
+          (act.menuItemId ? allMenuItems.find((m) => m.name.toLowerCase() === String(act.menuItemId).toLowerCase()) : null) ||
+          matchMenuItem(mName || act.menuItemId || "", allMenuItems as any);
 
         if (!itemObj && (!mName || mName === "custom-item" || mName === "menu" || mName === "pesanan")) {
           continue;
@@ -335,9 +336,9 @@ export async function POST(
           }
           if (!targetItem && act.menuName) {
             const nameLower = act.menuName.toLowerCase();
-            const matchedMenu = allMenuItems.find((m) =>
-              m.name.toLowerCase().includes(nameLower)
-            );
+            const matchedMenu =
+              allMenuItems.find((m) => m.name.toLowerCase().includes(nameLower)) ||
+              matchMenuItem(act.menuName, allMenuItems as any);
             if (matchedMenu) {
               targetItem = cart.items.find((ci) => ci.menuItemId === matchedMenu.id);
             }
@@ -381,9 +382,9 @@ export async function POST(
           }
           if (!targetItem && act.menuName) {
             const nameLower = act.menuName.toLowerCase();
-            const matchedMenu = allMenuItems.find((m) =>
-              m.name.toLowerCase().includes(nameLower)
-            );
+            const matchedMenu =
+              allMenuItems.find((m) => m.name.toLowerCase().includes(nameLower)) ||
+              matchMenuItem(act.menuName, allMenuItems as any);
             if (matchedMenu) {
               targetItem = cart.items.find((ci) => ci.menuItemId === matchedMenu.id);
             }
@@ -431,7 +432,8 @@ export async function POST(
           // If cart was empty, ONLY create an item if a REAL catalog menu item was matched!
           const itemObj =
             (act.menuItemId && act.menuItemId !== "custom-item" ? allMenuItems.find((m) => m.id === act.menuItemId) : null) ||
-            (act.menuName ? allMenuItems.find((m) => m.name.toLowerCase() === act.menuName!.toLowerCase()) : null);
+            (act.menuName ? allMenuItems.find((m) => m.name.toLowerCase() === act.menuName!.toLowerCase()) : null) ||
+            matchMenuItem(act.menuName || act.menuItemId || "", allMenuItems as any);
 
           if (itemObj) {
             const itemName = itemObj.name;
@@ -682,7 +684,7 @@ export async function POST(
           };
 
           const nameGreeting = activeCustomerName ? ` Kak **${activeCustomerName}**` : " kak";
-          finalReplyContent = `Terima kasih banyak${nameGreeting}! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan (${order.orderNumber}) atas nama ${activeCustomerName ? `Kak **${activeCustomerName}**` : "kakak"} sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          finalReplyContent = `Terima kasih banyak${nameGreeting}! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI.\n\nPesanan (${order.orderNumber}) atas nama ${activeCustomerName ? `Kak **${activeCustomerName}**` : "kakak"} sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
         } else if (activeOrder) {
           extraMetadata.orderConfirmed = {
             orderNumber: activeOrder.orderNumber,
@@ -690,7 +692,7 @@ export async function POST(
             tableNumber: activeOrder.tableNumber,
             customerName: activeOrder.customerName,
           };
-          finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas sebesar **Rp ${(activeOrder.total || 0).toLocaleString("id-ID")}** dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕✨`;
+          finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas sebesar **Rp ${(activeOrder.total || 0).toLocaleString("id-ID")}** dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕`;
         } else {
           finalReplyContent = `Saat ini keranjang pesanan untuk Meja **${tableNumber || "A1"}** masih kosong nih kak 😊. Mau saya pesankan menu kopi atau hidangan lezat hari ini?`;
         }
