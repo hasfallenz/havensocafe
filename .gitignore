@@ -44,3 +44,6 @@ yarn-error.log*
 *.db-journal
 *.db-wal
 *.sqlite
+
+# IDE AI agent workspace customization (not needed on VPS)
+.agents/
