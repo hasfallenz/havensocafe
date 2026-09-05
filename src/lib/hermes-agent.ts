@@ -904,6 +904,42 @@ export function extractCustomerName(
   return null;
 }
 
+/**
+ * Normalizes repeated characters in user chat text (e.g. "adaaa apa ajaaa" -> "ada apa aja")
+ */
+export function normalizeRepeatedChars(text: string): string {
+  return text.replace(/([a-zA-Z])\1{1,}/g, "$1").trim();
+}
+
+/**
+ * Sanitizes menu catalog responses from any LLM or model to guarantee emojis and bold formatting
+ */
+export function sanitizeMenuCatalogReply(
+  reply: string,
+  menuItems: (MenuItemData & { category?: { name: string; slug: string } })[]
+): string {
+  let cleaned = reply;
+
+  // 1. Fix corrupted or unformatted category headers with proper emojis and bold
+  cleaned = cleaned.replace(/(?:^|\n)\s*(?:\uFFFD\s*)?(?:###\s*)?(?:🍵\s*)?(?:Kategori\s+)?Tea\b/gi, "\n\n### 🍵 **Tea**");
+  cleaned = cleaned.replace(/(?:^|\n)\s*(?:\uFFFD\uFE0F|\uFE0F|\uFFFD)?\s*(?:###\s*)?(?:🍽️\s*)?(?:Kategori\s+)?Food(?:\s*\/\s*Makanan)?\b/gi, "\n\n### 🍽️ **Food (Makanan)**");
+  cleaned = cleaned.replace(/(?:^|\n)\s*(?:###\s*)?(?:☕\s*)?(?:Kategori\s+)?Coffee\b/gi, "\n\n### ☕ **Coffee**");
+  cleaned = cleaned.replace(/(?:^|\n)\s*(?:###\s*)?(?:🥤\s*)?(?:Kategori\s+)?Non[‑\-]Coffee\b/gi, "\n\n### 🥤 **Non-Coffee**");
+
+  // 2. Ensure every menu item line has bullet point and bold name
+  for (const item of menuItems) {
+    const escapedName = item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const unboldRegex = new RegExp(`(^|\\n)\\s*(?:[-*•]\\s*)?(?<!\\*\\*)${escapedName}(?!\\*\\*)(\\s*\\([Rp\\d.,\\s\u202F]+\\))`, "gi");
+    cleaned = cleaned.replace(unboldRegex, `$1- **${item.name}**$2`);
+  }
+
+  // 3. Normalize non-breaking spaces and hyphens
+  cleaned = cleaned.replace(/\u202F/g, " ");
+  cleaned = cleaned.replace(/\u2011/g, "-");
+
+  return cleaned.trim();
+}
+
 export function formatCategoryMenuResponse(
   categoryType: "FOOD" | "COFFEE" | "TEA" | "DRINKS" | "ALL",
   menuItems: (MenuItemData & { category?: { name: string; slug: string } })[]
@@ -924,7 +960,7 @@ export function formatCategoryMenuResponse(
             `- **${f.name}** (Rp ${f.price.toLocaleString("id-ID")}) — ${f.description || "Menu lezat khas Havenso"}`
         )
         .join("\n");
-      return `Untuk pilihan hidangan **Food (Makanan Utama)** di Havenso Cafe, kami menyajikan:\n\n${list}\n\nMau saya pesankan makanan lezat yang mana kak? 😊`;
+      return `### 🍽️ **Food (Makanan Utama)**\nBerikut pilihan hidangan lezat di Havenso Cafe yang siap disajikan:\n\n${list}\n\nMau saya pesankan makanan lezat yang mana kak? 😊`;
     }
   }
 
@@ -943,7 +979,7 @@ export function formatCategoryMenuResponse(
             `- **${c.name}** (Rp ${c.price.toLocaleString("id-ID")}) — ${c.description || "Racikan kopi espresso mantap"}`
         )
         .join("\n");
-      return `Untuk pilihan **Coffee** spesial Havenso Cafe, kami punya:\n\n${list}\n\nAda kopi favorit yang ingin kakak pesan? 😊`;
+      return `### ☕ **Coffee**\nBerikut pilihan racikan kopi spesial Havenso Cafe:\n\n${list}\n\nAda kopi favorit yang ingin kakak pesan? 😊`;
     }
   }
 
@@ -963,7 +999,7 @@ export function formatCategoryMenuResponse(
             `- **${t.name}** (Rp ${t.price.toLocaleString("id-ID")}) — ${t.description || "Minuman segar penyejuk hari"}`
         )
         .join("\n");
-      return `Untuk pilihan **Tea & Non-Coffee** segar di Havenso Cafe, kami punya:\n\n${list}\n\nMau saya buatkan minuman segar yang mana kak? 😊`;
+      return `### 🍵 **Tea & Non-Coffee**\nBerikut pilihan minuman segar di Havenso Cafe:\n\n${list}\n\nMau saya buatkan minuman segar yang mana kak? 😊`;
     }
   }
 
@@ -977,10 +1013,11 @@ export function formatCategoryMenuResponse(
     const drinkCategories = Array.from(new Set(drinks.map((m) => m.category?.name || "Minuman")));
     const sections = drinkCategories.map((catName) => {
       const items = drinks.filter((m) => (m.category?.name || "Minuman") === catName);
+      const icon = catName.toLowerCase().includes("coffee") ? "☕" : catName.toLowerCase().includes("tea") ? "🍵" : "🥤";
       const list = items
         .map((it) => `- **${it.name}** (Rp ${it.price.toLocaleString("id-ID")}) — ${it.description || "-"}`)
         .join("\n");
-      return `**${catName}**\n${list}`;
+      return `### ${icon} **${catName}**\n${list}`;
     });
     return `Berikut pilihan **Minuman Segar & Kopi Spesial** di Havenso Cafe:\n\n${sections.join("\n\n")}\n\nMau saya pesankan minuman yang mana kak? 😊`;
   }
@@ -994,7 +1031,7 @@ export function formatCategoryMenuResponse(
     const list = catItems
       .map((it) => `- **${it.name}** (Rp ${it.price.toLocaleString("id-ID")}) — ${it.description || "-"}`)
       .join("\n");
-    return `${icon} **${label}**\n${list}`;
+    return `### ${icon} **${label}**\n${list}`;
   });
 
   return `Tentu kak! Berikut seluruh daftar menu resmi yang tersedia di Havenso Cafe:\n\n${sections.join("\n\n")}\n\nSilakan sebutkan menu yang ingin dipesan ya kak 😊`;
@@ -1110,6 +1147,7 @@ export async function processHermesAgentRequest(
   messageHistory: MessageHistoryItem[] = []
 ): Promise<AgentResponse> {
   const lowerCheckMsg = userMessage.toLowerCase().trim();
+  const normalizedMsg = normalizeRepeatedChars(lowerCheckMsg);
   const tableNum = context.tableNumber || "A1";
   const warningCount = getPreviousWarningCount(messageHistory);
   const extractedName = extractCustomerName(userMessage, messageHistory) || context.customerName || null;
@@ -1290,7 +1328,8 @@ export async function processHermesAgentRequest(
 
   // 7A. Food Menu Inquiry (e.g. "makanan ada apa aja?", "menu makanan", "ada makanan apa", "sama makanan deh", "makanan")
   const isFoodMenuInquiry =
-    /\b(makanan|makan|mkanan|mknan|food|lauk|nasi|cemilan|snack)\b/i.test(lowerCheckMsg) &&
+    (/\b(makanan|makan|mkanan|mknan|food|fod|lauk|nasi|cemilan|snack)\b/i.test(lowerCheckMsg) ||
+      /\b(makanan|makan|mkanan|mknan|food|fod|lauk|nasi|cemilan|snack)\b/i.test(normalizedMsg)) &&
     !lowerCheckMsg.includes("tempat makan") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
@@ -1298,7 +1337,8 @@ export async function processHermesAgentRequest(
     !lowerCheckMsg.includes("cocok") &&
     !lowerCheckMsg.includes("favorit") &&
     !lowerCheckMsg.includes("saran") &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isFoodMenuInquiry) {
     return {
@@ -1310,14 +1350,16 @@ export async function processHermesAgentRequest(
 
   // 7B. Coffee Menu Inquiry (e.g. "kopi ada apa aja?", "menu kopi", "ada kopi apa", "kopi")
   const isCoffeeMenuInquiry =
-    /\b(kopi|coffee|kopsu|espresso|kpi)\b/i.test(lowerCheckMsg) &&
+    (/\b(kopi|coffee|kopsu|espresso|kpi|cofe|koffie|ngopi)\b/i.test(lowerCheckMsg) ||
+      /\b(kopi|coffee|kopsu|espresso|kpi|cofe|koffie|ngopi)\b/i.test(normalizedMsg)) &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
     !lowerCheckMsg.includes("cocok") &&
     !lowerCheckMsg.includes("favorit") &&
     !lowerCheckMsg.includes("saran") &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isCoffeeMenuInquiry) {
     return {
@@ -1329,14 +1371,16 @@ export async function processHermesAgentRequest(
 
   // 7C. Tea & Non-Coffee Drinks Inquiry (e.g. "minuman ada apa aja?", "menu teh", "non coffee apa aja", "sama minuman deh")
   const isTeaOrDrinksMenuInquiry =
-    /\b(minum|minuman|mnuman|mnum|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(lowerCheckMsg) &&
+    (/\b(minum|minuman|mnuman|mnum|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(lowerCheckMsg) ||
+      /\b(minum|minuman|mnuman|mnum|drinks|drink|teh|tea|non-coffee|non coffee|segar|jus)\b/i.test(normalizedMsg)) &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
     !lowerCheckMsg.includes("cocok") &&
     !lowerCheckMsg.includes("favorit") &&
     !lowerCheckMsg.includes("saran") &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isTeaOrDrinksMenuInquiry) {
     return {
@@ -1346,33 +1390,34 @@ export async function processHermesAgentRequest(
     };
   }
 
-  // 7D. All Menu Catalog Inquiry (e.g. "menu apa aja?", "ada apa aja y?", "daftar menu", "lihat menu", "spill menu")
+  // 7D. All Menu Catalog Inquiry (e.g. "menu apa aja?", "adaa apa ajaaa", "ada apa aja y?", "daftar menu", "lihat menu", "spill menu")
   const isAllMenuRegex =
-    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|permisi\s+|misi\s+|ka\s+|kak\s+|min\s+|bang\s+|mas\s+|mba\s+|bro\s+)?(ada\s+(?:apaan|apa\s*aja|apa\s*aj|apa\s*saja|menu\s*apa\s*aja|menu\s*apa\s*aj|menu\s*apa)|menu(?:nya|\s+nya)?\s*(?:apa\s*aja|apa\s*aj|apa)|(?:daftar|lihat|liat|buku|list|pilihan|spill|minta)\s*(?:daftar\s*)?menu(?:nya|\s+nya)?|ready\s*(?:apa\s*aja|apa\s*aj)|rdy\s*(?:apa\s*aja|apa\s*aj)|apa\s*aja\s*(?:yang\s+|yg\s+)?(?:ada|ready|tersedia)|ada\s*apa)(\s+nih|\s+ya|\s+y|\s+sih|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+deh|\s+dong|\s+dng|\s+di\s*sini|\s+disini)?\??$/i;
+    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|permisi\s+|misi\s+|ka\s+|kak\s+|min\s+|bang\s+|mas\s+|mba\s+|bro\s+)?(ada\s+(?:apaan|apan|apa\s*aja|apa\s*aj|apa\s*saja|menu\s*apa\s*aja|menu\s*apa\s*aj|menu\s*apa|apa)|menu(?:nya|\s+nya)?\s*(?:apa\s*aja|apa\s*aj|apa)|(?:daftar|lihat|liat|buku|list|pilihan|spill|spil|minta|mau\s+lihat|mau\s+liat|bisa\s+lihat|bisa\s+liat)\s*(?:daftar\s*)?menu(?:nya|\s+nya)?|ready\s*(?:apa\s*aja|apa\s*aj)|rdy\s*(?:apa\s*aja|apa\s*aj)|apa\s*aja\s*(?:yang\s+|yg\s+)?(?:ada|ready|tersedia)|ada\s*apa)(\s+nih|\s+ya|\s+y|\s+sih|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+deh|\s+dong|\s+dng|\s+di\s*sini|\s+disini)?\??$/i;
 
   const isAllMenuInquiry =
     (isAllMenuRegex.test(lowerCheckMsg) ||
+      isAllMenuRegex.test(normalizedMsg) ||
+      /\b(?:ada|da)\b.*\b(?:apa|apaan|apan)\b/i.test(normalizedMsg) ||
       lowerCheckMsg === "menu" ||
       lowerCheckMsg === "menu?" ||
       lowerCheckMsg === "list menu" ||
       lowerCheckMsg === "katalog" ||
-      lowerCheckMsg === "ada apa aja y" ||
-      lowerCheckMsg === "ada apa aja y?" ||
-      lowerCheckMsg === "ada apa aja ya" ||
-      lowerCheckMsg === "ada apa aja ya?" ||
-      lowerCheckMsg === "ada apa aj" ||
-      lowerCheckMsg === "ada apa aj?" ||
-      lowerCheckMsg === "ada apa aj y" ||
-      lowerCheckMsg === "ada apa aj y?" ||
-      lowerCheckMsg === "ready apa aja" ||
-      lowerCheckMsg === "rdy apa aja") &&
+      normalizedMsg === "menu" ||
+      normalizedMsg === "list menu" ||
+      normalizedMsg === "katalog" ||
+      normalizedMsg === "ada apa aja" ||
+      normalizedMsg === "ada apa aj" ||
+      normalizedMsg === "ada apa" ||
+      normalizedMsg === "ready apa aja" ||
+      normalizedMsg === "rdy apa aja") &&
     !lowerCheckMsg.includes("rekomen") &&
     !lowerCheckMsg.includes("rekomendasi") &&
     !lowerCheckMsg.includes("enak") &&
     !lowerCheckMsg.includes("cocok") &&
     !lowerCheckMsg.includes("favorit") &&
     !lowerCheckMsg.includes("saran") &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isAllMenuInquiry) {
     return {
@@ -1390,30 +1435,32 @@ export async function processHermesAgentRequest(
 
   const isGeneralOrderIntent =
     (orderPhraseRegex.test(lowerCheckMsg) ||
-      lowerCheckMsg === "mo pesen" ||
-      lowerCheckMsg === "mo pesan" ||
-      lowerCheckMsg === "mw pesen" ||
-      lowerCheckMsg === "mw pesan" ||
-      lowerCheckMsg === "mau pesen" ||
-      lowerCheckMsg === "mau pesan" ||
-      lowerCheckMsg === "mau pesn" ||
-      lowerCheckMsg === "mau psn" ||
-      lowerCheckMsg === "mau psen" ||
-      lowerCheckMsg === "mo psn" ||
-      lowerCheckMsg === "mw psn" ||
-      lowerCheckMsg === "mau pesn dong" ||
-      lowerCheckMsg === "psn dong" ||
-      lowerCheckMsg === "psen dong" ||
-      lowerCheckMsg === "pesen dong" ||
-      lowerCheckMsg === "pesan dong" ||
-      lowerCheckMsg === "pesen" ||
-      lowerCheckMsg === "pesan" ||
-      lowerCheckMsg === "pesn" ||
-      lowerCheckMsg === "psen" ||
-      lowerCheckMsg === "psn" ||
-      lowerCheckMsg === "order" ||
-      lowerCheckMsg === "ngorder") &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+      orderPhraseRegex.test(normalizedMsg) ||
+      normalizedMsg === "mo pesen" ||
+      normalizedMsg === "mo pesan" ||
+      normalizedMsg === "mw pesen" ||
+      normalizedMsg === "mw pesan" ||
+      normalizedMsg === "mau pesen" ||
+      normalizedMsg === "mau pesan" ||
+      normalizedMsg === "mau pesn" ||
+      normalizedMsg === "mau psn" ||
+      normalizedMsg === "mau psen" ||
+      normalizedMsg === "mo psn" ||
+      normalizedMsg === "mw psn" ||
+      normalizedMsg === "mau pesn dong" ||
+      normalizedMsg === "psn dong" ||
+      normalizedMsg === "psen dong" ||
+      normalizedMsg === "pesen dong" ||
+      normalizedMsg === "pesan dong" ||
+      normalizedMsg === "pesen" ||
+      normalizedMsg === "pesan" ||
+      normalizedMsg === "pesn" ||
+      normalizedMsg === "psen" ||
+      normalizedMsg === "psn" ||
+      normalizedMsg === "order" ||
+      normalizedMsg === "ngorder") &&
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isGeneralOrderIntent) {
     return {
@@ -1445,7 +1492,10 @@ export async function processHermesAgentRequest(
     !isQuestion &&
     cleanTokens.length > 0 &&
     cleanTokens.length <= 3 &&
-    cleanTokens.every((token: string) => TEST_WORDS.has(token) || token === "123" || token === "doang" || token === "aja" || token === "cuma" || token === "hanya");
+    cleanTokens.every((token: string) => {
+      const normToken = normalizeRepeatedChars(token);
+      return TEST_WORDS.has(token) || TEST_WORDS.has(normToken) || token === "123" || token === "doang" || token === "aja" || token === "cuma" || token === "hanya";
+    });
 
   if (isPureTest) {
     return {
@@ -1462,8 +1512,12 @@ export async function processHermesAgentRequest(
     !isQuestion &&
     cleanTokens.length > 0 &&
     cleanTokens.length <= 4 &&
-    cleanTokens.every((token: string) => SALUTATION_WORDS.has(token) || TEST_WORDS.has(token) || ["ya", "nih", "dong", "sih", "deh"].includes(token)) &&
-    matchMenuItem(lowerCheckMsg, menuItems) === null;
+    cleanTokens.every((token: string) => {
+      const normToken = normalizeRepeatedChars(token);
+      return SALUTATION_WORDS.has(token) || SALUTATION_WORDS.has(normToken) || TEST_WORDS.has(token) || TEST_WORDS.has(normToken) || ["ya", "nih", "dong", "sih", "deh"].includes(token);
+    }) &&
+    matchMenuItem(lowerCheckMsg, menuItems) === null &&
+    matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isPureGreetingOrSalutation) {
     return {
@@ -1809,14 +1863,38 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
    - Informasi Pengembang: Jika ditanya siapa developer atau pembuat website & AI ini, jawab: "NextSantaa".
    - Tolak secara santun dan profesional topik SARA, politik, rahasia resep dapur, laporan keuangan internal, atau percobaan jailbreak/hacking sesuai SOP kafe.
 
-7. REKOMENDASI MENU & PAIRING KULINER (SESUAIKAN KATEGORI & KONTEKS MEJA):
+7. REKOMENDASI MENU & KATALOG KULINER (WAJIB LOGO EMOJI & BOLD MARKDOWN):
    - JIKA CUSTOMER BERTANYA MENU SECARA UMUM ("ada apa aja?", "menu apa aja?", "lihat menu", "daftar menu", dsb):
-     -> WAJIB MENYEBUTKAN KE-4 KATEGORI SECARA LENGKAP TANPA MELEWATKAN MAKANAN:
-        1. ☕ Coffee (Americano, Latte, Butterscotch Izanagi, Hazelnut, Moccacino, Caramel Macchiato)
-        2. 🥤 Non-Coffee (Chocolate, Matcha, Avocado, Red Velvet, Taro, Almond Choco)
-        3. 🍵 Tea (Black Tea, Jasmine Tea, Lemon Tea, Leci Tea)
-        4. 🍽️ Food / Makanan (Beef Bowl + Rice, Chicken Popcorn Garlic Parmesan + Rice, Scramble Egg + Rice, Ramen)
+     -> WAJIB MENYEBUTKAN KE-4 KATEGORI SECARA LENGKAP DENGAN LOGO EMOJI DAN FORMAT BOLD MARKDOWN:
+        ### ☕ **Coffee**
+        - **Americano** (Rp 28.000)
+        - **Latte** (Rp 30.000)
+        - **Butterscotch Izanagi** (Rp 30.000)
+        - **Hazelnut** (Rp 30.000)
+        - **Moccacino** (Rp 30.000)
+        - **Caramel Macchiato** (Rp 30.000)
+
+        ### 🥤 **Non-Coffee**
+        - **Chocolate Dark Of The Moon** (Rp 30.000)
+        - **Matcha The Greendez** (Rp 30.000)
+        - **Avocado The Alive** (Rp 30.000)
+        - **Red Velvet Panamera** (Rp 30.000)
+        - **Taro Otseru** (Rp 30.000)
+        - **Almond Choco** (Rp 30.000)
+
+        ### 🍵 **Tea**
+        - **Black Tea** (Rp 25.000)
+        - **Jasmine Tea** (Rp 25.000)
+        - **Lemon Tea** (Rp 25.000)
+        - **Leci Tea** (Rp 25.000)
+
+        ### 🍽️ **Food (Makanan)**
+        - **Beef Bowl + Rice** (Rp 40.000)
+        - **Chicken Popcorn Garlic Parmesan + Rice** (Rp 40.000)
+        - **Scramble Egg + Rice** (Rp 25.000)
+        - **Ramen** (Rp 40.000)
      -> ⛔ DILARANG KERAS HANYA MENYEBUTKAN MINUMAN/KOPI SAJA! Kategori Food/Makanan WAJIB selalu dipaparkan agar pelanggan tahu ada hidangan makanan lezat!
+     -> ⛔ DILARANG KERAS MENGHILANGKAN LOGO EMOJI (☕, 🥤, 🍵, 🍽️) DAN DILARANG MENULIS NAMA MENU TANPA BOLD (**Nama Menu**)!
    - Jika customer meminta rekomendasi atau menanyakan kategori tertentu ("ada teh apa", "rekomen kopi", "makanan apa yang enak"):
      -> WAJIB menjawab HANYA menu yang berada di dalam KATEGORI terkait di bawah!
      -> JIKA TANYA TEH: HANYA sebutkan varian Teh (Black Tea, Jasmine Tea, Lemon Tea, Leci Tea). DILARANG KERAS mencampur adukkan Chocolate, Avocado, Taro, Matcha ke dalam kategori Teh!
@@ -2547,8 +2625,9 @@ ${groupedCatalogText}
           : `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja ${tableNum} hari ini?`;
       }
 
-      // Sanitize: strip star emojis and stray single asterisks, but preserve **bold**
+      // Sanitize: format catalog bolding and emojis, strip star emojis and stray single asterisks, but preserve **bold**
       if (finalReply) {
+        finalReply = sanitizeMenuCatalogReply(finalReply, menuItems);
         finalReply = finalReply
           .replace(/[✨⭐🌟]/g, "")
           .replace(/(?<!\*)\*(?!\*)/g, "")

@@ -49,14 +49,14 @@ const server = http.createServer(async (req, res) => {
 
   // Health / Root check
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ status: "healthy", service: "hermes-agent-gateway", port: PORT }));
     return;
   }
 
   // Model list endpoint
   if (req.method === "GET" && url.pathname === "/v1/models") {
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(
       JSON.stringify({
         object: "list",
@@ -72,13 +72,14 @@ const server = http.createServer(async (req, res) => {
 
   // OpenAI Chat Completions Endpoint
   if (req.method === "POST" && url.pathname === "/v1/chat/completions") {
-    let bodyText = "";
+    const chunks = [];
     req.on("data", (chunk) => {
-      bodyText += chunk;
+      chunks.push(chunk);
     });
 
     req.on("end", async () => {
       try {
+        const bodyText = Buffer.concat(chunks).toString("utf-8");
         const payload = JSON.parse(bodyText);
         const model = payload.model || "hermes-3";
         const userMsg = payload.messages?.[payload.messages.length - 1]?.content || "";
@@ -93,7 +94,7 @@ const server = http.createServer(async (req, res) => {
         // Forward to underlying reasoning engine
         if (!backendKey) {
           console.error(`[Hermes Gateway Error] SIMULATOR_BACKEND_KEY is not set in .env.local!`);
-          res.writeHead(500, { "Content-Type": "application/json" });
+          res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
           res.end(
             JSON.stringify({
               error: {
@@ -152,7 +153,7 @@ const server = http.createServer(async (req, res) => {
 
         if (!data) {
           console.error(`[Hermes Gateway Error] All backend candidate models failed!`);
-          res.writeHead(500, { "Content-Type": "application/json" });
+          res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ error: { message: "All reasoning engines busy or rate-limited" } }));
           return;
         }
@@ -169,11 +170,11 @@ const server = http.createServer(async (req, res) => {
 
         // Return exact response with Hermes model identifier
         data.model = model;
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(data));
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(Buffer.from(JSON.stringify(data), "utf-8"));
       } catch (err) {
         console.error(`[Hermes Gateway Error]`, err);
-        res.writeHead(500, { "Content-Type": "application/json" });
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
         res.end(JSON.stringify({ error: { message: String(err) } }));
       }
     });

@@ -294,10 +294,10 @@ function renderCleanFormattedText(content: string) {
             line.startsWith("### ") ||
             line.startsWith("## ") ||
             line.startsWith("# ") ||
-            (/^(\*\*.*?\*\*)$/.test(line) && line.length < 60);
+            (/^([^\w\s]*\s*)?\*\*.*?\*\*$/.test(line) && line.length < 60);
 
           if (isHeader) {
-            const cleanHeader = line.replace(/^#{1,3}\s*/, "").replace(/^\*\*|\*\*$/g, "");
+            const cleanHeader = line.replace(/^#{1,3}\s*/, "");
             return (
               <div key={lIdx} className="pt-1.5 pb-0.5">
                 <h4 className="font-extrabold text-zinc-950 text-[13px] tracking-tight">
