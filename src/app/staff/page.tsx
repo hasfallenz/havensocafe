@@ -200,7 +200,7 @@ export default function DedicatedStaffPage() {
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-zinc-900 mt-0.5">
-                  Order #{newOrderAlert.orderNumber} • Total: {formatCurrency(newOrderAlert.total)}
+                  Order #{newOrderAlert.orderNumber} • A/N: <span className="font-black text-zinc-950 underline">{newOrderAlert.order?.customerName || "Pelanggan"}</span> • Total: {formatCurrency(newOrderAlert.total)}
                 </p>
               </div>
             </div>
@@ -360,8 +360,13 @@ export default function DedicatedStaffPage() {
                     <td className="py-3.5 px-4 font-mono font-bold text-zinc-900">
                       {order.orderNumber}
                     </td>
-                    <td className="py-3.5 px-4 font-extrabold text-sky-800">
-                      Meja {order.tableNumber || "A1"}
+                    <td className="py-3.5 px-4">
+                      <div className="font-extrabold text-sky-800">
+                        Meja {order.tableNumber || "A1"}
+                      </div>
+                      <div className="text-[11px] font-bold text-zinc-600 mt-0.5">
+                        A/N: <span className="text-zinc-900 font-extrabold">{order.customerName || "-"}</span>
+                      </div>
                     </td>
                     <td className="py-3.5 px-4 text-zinc-700">
                       {order.items.map((i) => `${i.quantity}x ${i.nameSnapshot}`).join(", ")}

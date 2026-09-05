@@ -6,6 +6,7 @@ export interface AgentAction {
     | "REMOVE_ITEM"
     | "CUSTOMIZE_ITEM"
     | "CLEAR_CART"
+    | "SET_CUSTOMER_NAME"
     | "SHOW_QRIS"
     | "CONFIRM_ORDER_PAID"
     | "CALL_STAFF"
@@ -17,12 +18,14 @@ export interface AgentAction {
   notes?: string;
   reason?: string;
   amount?: number;
+  customerName?: string;
 }
 
 export interface AgentResponse {
   reply: string;
   actions: AgentAction[];
   intent?: string;
+  customerName?: string;
 }
 
 export interface MessageHistoryItem {
@@ -359,6 +362,94 @@ export function matchMenuItem(
   return bestItem;
 }
 
+export function capitalizeName(str: string): string {
+  if (!str) return "";
+  return str
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export function extractCustomerName(
+  userMessage: string,
+  messageHistory: MessageHistoryItem[] = []
+): string | null {
+  if (!userMessage) return null;
+  const clean = userMessage.trim();
+
+  // 1. Explicit pattern in current message: "atas nama [Name]", "a/n [Name]", "an [Name]", "a.n. [Name]"
+  const anMatch = clean.match(/(?:atas\s*nama|a\/n|an|a\.n\.?)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+  if (anMatch && anMatch[1]) {
+    const rawName = anMatch[1].trim();
+    const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
+    if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+      return capitalizeName(filtered);
+    }
+  }
+
+  // 2. Explicit pattern: "nama saya [Name]", "namaku [Name]", "nama gue/gw [Name]", "panggil [Name] aja"
+  const namaMatch = clean.match(/(?:nama\s*saya|namaku|nama\s*gw|nama\s*gue|panggil\s*aja|panggil\s*aku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+  if (namaMatch && namaMatch[1]) {
+    const rawName = namaMatch[1].trim();
+    const filtered = rawName.replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas|mba|mbak)\b/gi, "").trim();
+    if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+      return capitalizeName(filtered);
+    }
+  }
+
+  // 3. Pattern: "saya [Name] pesan...", "aku [Name] mau..."
+  const introMatch = clean.match(/^(?:halo\s+|hai\s+)?(?:saya|aku|gw|gue)\s+([a-zA-Z]{2,20})\s+(?:mau|pesan|pesen|order)/i);
+  if (introMatch && introMatch[1]) {
+    const candidate = introMatch[1].trim();
+    if (!INDONESIAN_STOPWORDS.has(candidate.toLowerCase()) && !SLANG_ALIASES[candidate.toLowerCase()]) {
+      return capitalizeName(candidate);
+    }
+  }
+
+  // 4. If the last message from assistant/AI asked for customer name ("atas nama siapa", "dengan kakak siapa")
+  const lastAiMessage = [...messageHistory].reverse().find((m) => m.senderType !== "CUSTOMER");
+  if (lastAiMessage) {
+    const lastAiLower = lastAiMessage.content.toLowerCase();
+    if (
+      lastAiLower.includes("atas nama siapa") ||
+      lastAiLower.includes("dengan kakak siapa") ||
+      lastAiLower.includes("nama siapa") ||
+      lastAiLower.includes("pesanan ini atas nama siapa")
+    ) {
+      const words = clean.split(/\s+/).filter((w) => w.length > 0);
+      if (words.length >= 1 && words.length <= 4) {
+        const filtered = clean
+          .replace(/^(atas nama|a\/n|an|a\.n\.?|nama saya|namaku|nama|kak|bang|mas|mba|mbak|pak|bu)\s*/gi, "")
+          .replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "")
+          .trim();
+        if (
+          filtered.length >= 2 &&
+          !INDONESIAN_STOPWORDS.has(filtered.toLowerCase()) &&
+          !SLANG_ALIASES[filtered.toLowerCase()] &&
+          matchMenuItem(filtered, []) === null
+        ) {
+          return capitalizeName(filtered);
+        }
+      }
+    }
+  }
+
+  // 5. Look backwards in messageHistory if already provided earlier
+  for (const m of messageHistory) {
+    if (m.senderType === "CUSTOMER") {
+      const histAn = m.content.match(/(?:atas\s*nama|a\/n|an|nama\s*saya|namaku)\s*:?\s*([a-zA-Z\s]{2,35})/i);
+      if (histAn && histAn[1]) {
+        const filtered = histAn[1].replace(/\b(ya|kak|deh|dong|nih|aja|saja|kakak|bang|mas)\b/gi, "").trim();
+        if (filtered.length >= 2 && !INDONESIAN_STOPWORDS.has(filtered.toLowerCase())) {
+          return capitalizeName(filtered);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export function formatCategoryMenuResponse(
   categoryType: "FOOD" | "COFFEE" | "TEA" | "DRINKS" | "ALL",
   menuItems: (MenuItemData & { category?: { name: string; slug: string } })[]
@@ -553,6 +644,7 @@ export async function processHermesAgentRequest(
   context: {
     sessionId: string;
     tableNumber: string;
+    customerName?: string;
     selectedItems?: MenuItemData[];
     currentCartItems?: CartItemContext[];
     paymentVerified?: boolean;
@@ -564,6 +656,7 @@ export async function processHermesAgentRequest(
   const lowerCheckMsg = userMessage.toLowerCase().trim();
   const tableNum = context.tableNumber || "A1";
   const warningCount = getPreviousWarningCount(messageHistory);
+  const extractedName = extractCustomerName(userMessage, messageHistory) || context.customerName || null;
 
   // 1. Safety Guardrail: 18+ / NSFW
   if (NSFW_KEYWORDS.some((kw) => lowerCheckMsg.includes(kw))) {
@@ -1084,6 +1177,21 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
    - Di Havenso Cafe, semua sajian kopi/minuman disajikan dalam 1 porsi standar gelas saji (dingin/iced secara default, kecuali diminta panas).
    - Ketika pelanggan berkata "Pesan 1 Caramel Macchiato", SEGERA panggil tool add_to_cart dan konfirmasikan pesanannya tanpa menanyakan pertanyaan kaku mengenai ukuran gelas!
 
+9. VALIDASI NAMA PEMESAN SECARA SOPAN (CUSTOMER NAME VERIFICATION):
+   - Standar Etika Pelayanan Bintang 5 Havenso Cafe: Nama pemesan diperlukan agar tercetak keren & jelas di struk resmi kasir dan memudahkan staf meja saat mengantar pesanan.
+   - KETIKA PESANAN DIVALIDASI / CUSTOMER INGIN CHECKOUT ATAU BAYAR (misalnya: "itu aja", "mau bayar", "lanjut bayar", "sudah pas", "siap bayar", "checkout", dsb):
+     * JIKA NAMA PEMESAN BELUM DIKETAHUI:
+       -> DILARANG LANGSUNG memanggil tool show_qris_payment!
+       -> Validasi pesanan meja terlebih dahulu dan tanyakan nama pemesan dengan sangat santun, ramah, dan bersahaja:
+          "Baik kak, pesanan untuk Meja ${tableNum} sudah saya catat dengan sempurna. Sebelum kami buatkan kode QRIS pembayarannya, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cantumkan di struk resmi kasir dan memudahkan staf kami saat mengantarkan pesanan 😊"
+     * KETIKA CUSTOMER MENYEBUTKAN NAMA (contoh: "Budi", "Atas nama Hendra", "Zura", "Kak Dimas", dsb):
+       -> Panggil tool show_qris_payment dengan parameter customerName: "[Nama]".
+       -> Balas dengan hangat, ramah, dan sebut namanya secara terhormat:
+          "Terima kasih banyak, Kak [Nama]! 🙏 Pesanan Meja ${tableNum} atas nama Kak [Nama] sudah kami kunci. Ini kode QRIS resmi Havenso Cafe untuk pembayaran..."
+     * JIKA CUSTOMER SUDAH MENYEBUTKAN NAMANYA SEJAK AWAL (contoh: "Saya Dimas pesan 1 Latte"):
+       -> Ingat dan sapa selalu sebagai "Kak Dimas". Saat checkout/bayar, langsung tampilkan QRIS dengan customerName: "Dimas" tanpa perlu bertanya ulang!
+     * DILARANG menanyakan nama berulang kali jika nama sudah diketahui!
+
 DAFTAR KATALOG MENU RESMI PER KATEGORI:
 ${groupedCatalogText}
 `;
@@ -1163,11 +1271,32 @@ ${groupedCatalogText}
     {
       type: "function",
       function: {
-        name: "show_qris_payment",
-        description: "Menampilkan kode QRIS resmi Havenso Cafe untuk pembayaran.",
+        name: "set_customer_name",
+        description: "Mencatat dan memvalidasi nama pemesan (atas nama siapa) untuk dicantumkan di struk kasir dan data pesanan meja.",
         parameters: {
           type: "object",
           properties: {
+            customerName: {
+              type: "string",
+              description: "Nama pemesan yang diberikan pelanggan",
+            },
+          },
+          required: ["customerName"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "show_qris_payment",
+        description: "Menampilkan kode QRIS resmi Havenso Cafe untuk pembayaran setelah pesanan dan nama pemesan tervalidasi.",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: {
+              type: "string",
+              description: "Nama pemesan (atas nama siapa) untuk dicetak di struk",
+            },
             notes: { type: "string" },
           },
         },
@@ -1181,6 +1310,10 @@ ${groupedCatalogText}
         parameters: {
           type: "object",
           properties: {
+            customerName: {
+              type: "string",
+              description: "Nama pemesan",
+            },
             method: { type: "string" },
           },
         },
@@ -1315,12 +1448,24 @@ ${groupedCatalogText}
               menuItemId: targetItem?.id,
               menuName: targetItem?.name || fnArgs.menuName,
             });
-          } else if (fnName === "clear_cart") {
-            actions.push({ type: "CLEAR_CART" });
+          } else if (fnName === "set_customer_name") {
+            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            actions.push({
+              type: "SET_CUSTOMER_NAME",
+              customerName: detected || undefined,
+            });
           } else if (fnName === "show_qris_payment") {
-            actions.push({ type: "SHOW_QRIS" });
+            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            actions.push({
+              type: "SHOW_QRIS",
+              customerName: detected || undefined,
+            });
           } else if (fnName === "confirm_order_paid") {
-            actions.push({ type: "CONFIRM_ORDER_PAID" });
+            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            actions.push({
+              type: "CONFIRM_ORDER_PAID",
+              customerName: detected || undefined,
+            });
           } else if (fnName === "call_staff") {
             actions.push({
               type: "CALL_STAFF",
@@ -1340,9 +1485,18 @@ ${groupedCatalogText}
         lowerMsg.includes("verifikasi pembayaran") ||
         lowerMsg.includes("memverifikasi pembayaran");
 
+      const effectiveCustomerName =
+        actions.find((a) => a.customerName)?.customerName ||
+        extractedName ||
+        context.customerName ||
+        null;
+
       if (isPaidIntent) {
         actions.length = 0;
-        actions.push({ type: "CONFIRM_ORDER_PAID" });
+        actions.push({
+          type: "CONFIRM_ORDER_PAID",
+          customerName: effectiveCustomerName || undefined,
+        });
       }
 
       // Additional Intent & Context Handlers
@@ -1369,9 +1523,45 @@ ${groupedCatalogText}
         context.currentCartItems &&
         context.currentCartItems.length > 0;
 
-      if (isProceedToPayment && !actions.some((a) => a.type === "SHOW_QRIS")) {
-        actions.length = 0;
-        actions.push({ type: "SHOW_QRIS" });
+      if (isProceedToPayment) {
+        if (effectiveCustomerName) {
+          if (!actions.some((a) => a.type === "SHOW_QRIS")) {
+            actions.length = 0;
+            actions.push({
+              type: "SHOW_QRIS",
+              customerName: effectiveCustomerName,
+            });
+          }
+        } else {
+          // If customer has NOT given their name yet, DO NOT show QRIS prematurely!
+          const qrisIdx = actions.findIndex((a) => a.type === "SHOW_QRIS");
+          if (qrisIdx !== -1) {
+            actions.splice(qrisIdx, 1);
+          }
+        }
+      }
+
+      // If customer just provided their name in this turn while cart has items:
+      if (
+        extractedName &&
+        !actions.some((a) => a.type === "SHOW_QRIS") &&
+        !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
+        context.currentCartItems &&
+        context.currentCartItems.length > 0
+      ) {
+        const lastAiMsg = [...messageHistory].reverse().find((m) => m.senderType !== "CUSTOMER");
+        if (
+          lastAiMsg &&
+          (lastAiMsg.content.toLowerCase().includes("atas nama siapa") ||
+            lastAiMsg.content.toLowerCase().includes("nama siapa") ||
+            lastAiMsg.content.toLowerCase().includes("dengan kakak siapa") ||
+            lastAiMsg.content.toLowerCase().includes("pesanan ini atas nama siapa"))
+        ) {
+          actions.push({
+            type: "SHOW_QRIS",
+            customerName: extractedName,
+          });
+        }
       }
 
       let finalReply = choice.content?.trim();
@@ -1379,14 +1569,23 @@ ${groupedCatalogText}
         finalReply = finalReply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
 
+      // If checkout requested but name unknown, ensure we politely ask for the name!
+      if (isProceedToPayment && !effectiveCustomerName) {
+        if (!finalReply || !finalReply.toLowerCase().includes("atas nama")) {
+          finalReply = `Baik kak, pesanan untuk Meja **${tableNum}** sudah saya catat dengan rapi:\n${cartSummaryText}\n\nSebelum kami buatkan kode pembayaran QRIS, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar nama kakak dapat kami cetak di struk resmi kasir dan memudahkan staf kami mengantarkan pesanan 😊`;
+        }
+      }
+
       if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
-        finalReply = `Terima kasih banyak kak! Pembayaran QRIS untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan resmi diteruskan ke dapur/barista dan saat ini sedang disiapkan! ☕👨‍🍳`;
+        const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : " kak";
+        finalReply = `Terima kasih banyak${nameGreeting}! Pembayaran QRIS untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan resmi diteruskan ke dapur/barista dan saat ini sedang disiapkan! ☕👨‍🍳`;
       }
 
       // Only fallback if the LLM returned an empty text string alongside its tool call
       if (!finalReply) {
         if (actions.some((a) => a.type === "SHOW_QRIS")) {
-          finalReply = `Siap kak! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan atau upload bukti transfer ya 😊`;
+          const nameGreeting = effectiveCustomerName ? ` Kak **${effectiveCustomerName}**` : "";
+          finalReply = `Siap${nameGreeting}! Ini kode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja **${tableNum}**. Silakan scan barcode atau upload bukti transfer di bawah ya 😊`;
         } else if (actions.some((a) => a.type === "CONFIRM_ORDER_PAID")) {
           finalReply = `Terima kasih banyak kak! Pembayaran untuk Meja **${tableNum}** sudah berhasil diverifikasi ✨. Pesanan sudah dikirim ke dapur/barista!`;
         } else if (actions.some((a) => a.type === "ADD_ITEM")) {
@@ -1408,6 +1607,7 @@ ${groupedCatalogText}
       return {
         reply: finalReply,
         actions,
+        customerName: effectiveCustomerName || undefined,
       };
     } catch (e) {
       console.warn(`Error querying model ${model}:`, e);

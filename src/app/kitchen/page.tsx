@@ -287,8 +287,8 @@ export default function DedicatedKitchenPage() {
                             <span className="text-xs font-black text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2.5 py-0.5 rounded-lg">
                               MEJA {order.tableNumber || "A1"}
                             </span>
-                            <span className="text-xs font-bold text-zinc-400">
-                              {order.items.length} item
+                            <span className="text-xs font-bold text-zinc-300">
+                              A/N: <span className="text-amber-300 font-black">{order.customerName || "Pelanggan"}</span>
                             </span>
                           </div>
 

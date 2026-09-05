@@ -202,11 +202,16 @@ export async function POST(
       });
     }
 
+    const session = await prisma.customerSession.findUnique({
+      where: { id: conversation.sessionId },
+    });
+
     const aiResult = await processHermesAgentRequest(
       content,
       {
         sessionId: conversation.sessionId,
         tableNumber: tableNumber || "A1",
+        customerName: session?.customerName || undefined,
         selectedItems,
         currentCartItems: existingCart?.items as any,
         paymentVerified: !!paymentVerified,
@@ -215,6 +220,13 @@ export async function POST(
       allMenuItems as any,
       conversation.messages as any
     );
+
+    if (aiResult.customerName && aiResult.customerName !== session?.customerName) {
+      await prisma.customerSession.update({
+        where: { id: conversation.sessionId },
+        data: { customerName: aiResult.customerName },
+      });
+    }
 
     // Execute actions from AI
     let updatedCart = existingCart;
@@ -466,6 +478,14 @@ export async function POST(
             include: { items: true },
           });
         }
+      } else if (act.type === "SET_CUSTOMER_NAME") {
+        const cName = act.customerName || aiResult.customerName;
+        if (cName) {
+          await prisma.customerSession.update({
+            where: { id: conversation.sessionId },
+            data: { customerName: cName },
+          });
+        }
       } else if (act.type === "SHOW_QRIS") {
         const cart = await prisma.cart.findUnique({
           where: { sessionId: conversation.sessionId },
@@ -518,6 +538,7 @@ export async function POST(
 
           const calculatedTax = Math.round(calculatedSubtotal * 0.1);
           const calculatedTotal = (clientCart?.total && clientCart.total > 0) ? clientCart.total : (calculatedSubtotal + calculatedTax);
+          const activeCustomerName = act.customerName || aiResult.customerName || session?.customerName || null;
 
           extraMetadata.qris = {
             show: true,
@@ -526,6 +547,7 @@ export async function POST(
             tax: calculatedTax,
             items: itemSummaries,
             tableNumber: tableNumber || "A1",
+            customerName: activeCustomerName,
           };
         }
       } else if (act.type === "CONFIRM_ORDER_PAID") {
@@ -598,12 +620,14 @@ export async function POST(
           const total = clientCart?.total || subtotal + tax;
 
           const orderNumber = `#HVS-${Math.floor(10000 + Math.random() * 90000)}`;
+          const activeCustomerName = act.customerName || aiResult.customerName || session?.customerName || null;
 
           // Create verified order
           const order = await prisma.order.create({
             data: {
               orderNumber,
               sessionId: conversation.sessionId,
+              customerName: activeCustomerName,
               tableNumber: tableNumber || "A1",
               status: "QUEUED",
               paymentStatus: "SUCCESS",
@@ -611,7 +635,7 @@ export async function POST(
               tax,
               discount: 0,
               total,
-              notes: "Pembayaran QRIS Terverifikasi",
+              notes: activeCustomerName ? `A/N: ${activeCustomerName} - Pembayaran QRIS Terverifikasi` : "Pembayaran QRIS Terverifikasi",
               items: {
                 create: orderItemsData,
               },
@@ -642,7 +666,7 @@ export async function POST(
             });
           }
 
-          // Broadcast to Kitchen Display!
+          // Broadcast to Kitchen Display & Staff!
           eventBus.broadcast("ORDER_CREATED", {
             order: {
               ...order,
@@ -654,14 +678,17 @@ export async function POST(
             orderNumber: order.orderNumber,
             total: order.total,
             tableNumber: order.tableNumber,
+            customerName: order.customerName,
           };
 
-          finalReplyContent = `Terima kasih banyak kak! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan (${order.orderNumber}) sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
+          const nameGreeting = activeCustomerName ? ` Kak **${activeCustomerName}**` : " kak";
+          finalReplyContent = `Terima kasih banyak${nameGreeting}! Pembayaran QRIS sebesar **Rp ${total.toLocaleString("id-ID")}** untuk **Meja ${tableNumber || "A1"}** SUDAH BERHASIL TERVERIFIKASI ✨.\n\nPesanan (${order.orderNumber}) atas nama ${activeCustomerName ? `Kak **${activeCustomerName}**` : "kakak"} sudah resmi kami kirimkan ke tim Kitchen & Barista dan saat ini sedang disiapkan. Selamat menikmati! ☕👨‍🍳`;
         } else if (activeOrder) {
           extraMetadata.orderConfirmed = {
             orderNumber: activeOrder.orderNumber,
             total: activeOrder.total,
             tableNumber: activeOrder.tableNumber,
+            customerName: activeOrder.customerName,
           };
           finalReplyContent = `Pesanan untuk Meja **${tableNumber || "A1"}** (${activeOrder.orderNumber}) sudah terverifikasi lunas sebesar **Rp ${(activeOrder.total || 0).toLocaleString("id-ID")}** dan saat ini sedang disiapkan oleh tim Barista/Dapur kami. Mohon ditunggu sebentar ya kak! ☕✨`;
         } else {

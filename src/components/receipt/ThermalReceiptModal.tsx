@@ -115,6 +115,12 @@ export default function ThermalReceiptModal({
               </span>
             </div>
             <div className="flex justify-between">
+              <span className="text-zinc-600">Atas Nama :</span>
+              <span className="font-extrabold text-zinc-950 uppercase tracking-wide">
+                {order.customerName || "Pelanggan Havenso"}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-zinc-600">Waktu :</span>
               <span>
                 {formattedDate}, {formattedTime}

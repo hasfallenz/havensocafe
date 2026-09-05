@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     const {
       sessionId,
       tableNumber = "A1",
+      customerName,
       notes = "",
       paymentProvider = "QRIS",
     } = body;
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       data: {
         orderNumber,
         sessionId,
+        customerName: customerName || null,
         tableNumber,
         status: "QUEUED",
         paymentStatus: "PENDING",
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
         tax,
         discount,
         total,
-        notes,
+        notes: customerName ? `${notes ? notes + " • " : ""}A/N: ${customerName}` : notes,
         items: {
           create: orderItemsData,
         },

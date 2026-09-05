@@ -94,6 +94,7 @@ export interface OrderData {
   id: string;
   orderNumber: string;
   sessionId: string;
+  customerName?: string | null;
   tableId?: string | null;
   tableNumber?: string | null;
   status: OrderStatus;

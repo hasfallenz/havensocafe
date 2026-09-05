@@ -114,6 +114,12 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
             <p className="text-[11px] font-semibold text-sky-700">
               Havenso Cafe • Meja {qrisData.tableNumber || "A1"}
             </p>
+            {qrisData.customerName && (
+              <div className="mt-1 px-2.5 py-0.5 rounded-md bg-amber-100/80 border border-amber-200/60 inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-900">
+                <span>Atas Nama:</span>
+                <span className="text-zinc-950 uppercase">{qrisData.customerName}</span>
+              </div>
+            )}
           </div>
 
           {/* Real QRIS Image Container */}
@@ -171,7 +177,14 @@ export const RichChatMessage: React.FC<RichChatMessageProps> = ({
             <div className="w-6 h-6 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
-            <span>Pesanan Masuk ke Dapur: {isOrderConfirmed.orderNumber}</span>
+            <div>
+              <div>Pesanan Masuk ke Dapur: <span className="font-black text-emerald-950">{isOrderConfirmed.orderNumber}</span></div>
+              {isOrderConfirmed.customerName && (
+                <div className="text-[10.5px] text-emerald-700 font-semibold">
+                  A/N: <span className="font-bold text-emerald-950 uppercase">{isOrderConfirmed.customerName}</span>
+                </div>
+              )}
+            </div>
           </div>
           <span className="font-mono text-emerald-950 font-black">
             {formatCurrency(isOrderConfirmed.total)}

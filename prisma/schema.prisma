@@ -29,13 +29,14 @@ model Table {
 }
 
 model CustomerSession {
-  id          String   @id @default(cuid())
-  tableId     String?
-  tableNumber String?
-  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, CLOSED
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  tableId      String?
+  tableNumber  String?
+  customerName String?
+  status       String    @default("ACTIVE") // ACTIVE, EXPIRED, CLOSED
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Category {
@@ -109,6 +110,7 @@ model Order {
   id            String      @id @default(cuid())
   orderNumber   String      @unique // e.g. #HVS-10291
   sessionId     String
+  customerName  String?
   tableId       String?
   tableNumber   String?
   status        String      @default("QUEUED") // QUEUED, COOKING, READY, COMPLETED, CANCELLED

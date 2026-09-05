@@ -28,6 +28,7 @@ export type CustomerSessionMinAggregateOutputType = {
   id: string | null
   tableId: string | null
   tableNumber: string | null
+  customerName: string | null
   status: string | null
   expiresAt: Date | null
   createdAt: Date | null
@@ -38,6 +39,7 @@ export type CustomerSessionMaxAggregateOutputType = {
   id: string | null
   tableId: string | null
   tableNumber: string | null
+  customerName: string | null
   status: string | null
   expiresAt: Date | null
   createdAt: Date | null
@@ -48,6 +50,7 @@ export type CustomerSessionCountAggregateOutputType = {
   id: number
   tableId: number
   tableNumber: number
+  customerName: number
   status: number
   expiresAt: number
   createdAt: number
@@ -60,6 +63,7 @@ export type CustomerSessionMinAggregateInputType = {
   id?: true
   tableId?: true
   tableNumber?: true
+  customerName?: true
   status?: true
   expiresAt?: true
   createdAt?: true
@@ -70,6 +74,7 @@ export type CustomerSessionMaxAggregateInputType = {
   id?: true
   tableId?: true
   tableNumber?: true
+  customerName?: true
   status?: true
   expiresAt?: true
   createdAt?: true
@@ -80,6 +85,7 @@ export type CustomerSessionCountAggregateInputType = {
   id?: true
   tableId?: true
   tableNumber?: true
+  customerName?: true
   status?: true
   expiresAt?: true
   createdAt?: true
@@ -163,6 +169,7 @@ export type CustomerSessionGroupByOutputType = {
   id: string
   tableId: string | null
   tableNumber: string | null
+  customerName: string | null
   status: string
   expiresAt: Date | null
   createdAt: Date
@@ -194,6 +201,7 @@ export type CustomerSessionWhereInput = {
   id?: Prisma.StringFilter<"CustomerSession"> | string
   tableId?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
   tableNumber?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
+  customerName?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
   status?: Prisma.StringFilter<"CustomerSession"> | string
   expiresAt?: Prisma.DateTimeNullableFilter<"CustomerSession"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"CustomerSession"> | Date | string
@@ -204,6 +212,7 @@ export type CustomerSessionOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   tableId?: Prisma.SortOrderInput | Prisma.SortOrder
   tableNumber?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerName?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -217,6 +226,7 @@ export type CustomerSessionWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.CustomerSessionWhereInput | Prisma.CustomerSessionWhereInput[]
   tableId?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
   tableNumber?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
+  customerName?: Prisma.StringNullableFilter<"CustomerSession"> | string | null
   status?: Prisma.StringFilter<"CustomerSession"> | string
   expiresAt?: Prisma.DateTimeNullableFilter<"CustomerSession"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"CustomerSession"> | Date | string
@@ -227,6 +237,7 @@ export type CustomerSessionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   tableId?: Prisma.SortOrderInput | Prisma.SortOrder
   tableNumber?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerName?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -243,6 +254,7 @@ export type CustomerSessionScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"CustomerSession"> | string
   tableId?: Prisma.StringNullableWithAggregatesFilter<"CustomerSession"> | string | null
   tableNumber?: Prisma.StringNullableWithAggregatesFilter<"CustomerSession"> | string | null
+  customerName?: Prisma.StringNullableWithAggregatesFilter<"CustomerSession"> | string | null
   status?: Prisma.StringWithAggregatesFilter<"CustomerSession"> | string
   expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CustomerSession"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CustomerSession"> | Date | string
@@ -253,6 +265,7 @@ export type CustomerSessionCreateInput = {
   id?: string
   tableId?: string | null
   tableNumber?: string | null
+  customerName?: string | null
   status?: string
   expiresAt?: Date | string | null
   createdAt?: Date | string
@@ -263,6 +276,7 @@ export type CustomerSessionUncheckedCreateInput = {
   id?: string
   tableId?: string | null
   tableNumber?: string | null
+  customerName?: string | null
   status?: string
   expiresAt?: Date | string | null
   createdAt?: Date | string
@@ -273,6 +287,7 @@ export type CustomerSessionUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tableId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tableNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -283,6 +298,7 @@ export type CustomerSessionUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tableId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tableNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -293,6 +309,7 @@ export type CustomerSessionCreateManyInput = {
   id?: string
   tableId?: string | null
   tableNumber?: string | null
+  customerName?: string | null
   status?: string
   expiresAt?: Date | string | null
   createdAt?: Date | string
@@ -303,6 +320,7 @@ export type CustomerSessionUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tableId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tableNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -313,6 +331,7 @@ export type CustomerSessionUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tableId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tableNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -323,6 +342,7 @@ export type CustomerSessionCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tableId?: Prisma.SortOrder
   tableNumber?: Prisma.SortOrder
+  customerName?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -333,6 +353,7 @@ export type CustomerSessionMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tableId?: Prisma.SortOrder
   tableNumber?: Prisma.SortOrder
+  customerName?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -343,6 +364,7 @@ export type CustomerSessionMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tableId?: Prisma.SortOrder
   tableNumber?: Prisma.SortOrder
+  customerName?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -359,6 +381,7 @@ export type CustomerSessionSelect<ExtArgs extends runtime.Types.Extensions.Inter
   id?: boolean
   tableId?: boolean
   tableNumber?: boolean
+  customerName?: boolean
   status?: boolean
   expiresAt?: boolean
   createdAt?: boolean
@@ -369,6 +392,7 @@ export type CustomerSessionSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   id?: boolean
   tableId?: boolean
   tableNumber?: boolean
+  customerName?: boolean
   status?: boolean
   expiresAt?: boolean
   createdAt?: boolean
@@ -379,6 +403,7 @@ export type CustomerSessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   id?: boolean
   tableId?: boolean
   tableNumber?: boolean
+  customerName?: boolean
   status?: boolean
   expiresAt?: boolean
   createdAt?: boolean
@@ -389,13 +414,14 @@ export type CustomerSessionSelectScalar = {
   id?: boolean
   tableId?: boolean
   tableNumber?: boolean
+  customerName?: boolean
   status?: boolean
   expiresAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CustomerSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tableId" | "tableNumber" | "status" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["customerSession"]>
+export type CustomerSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tableId" | "tableNumber" | "customerName" | "status" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["customerSession"]>
 
 export type $CustomerSessionPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "CustomerSession"
@@ -404,6 +430,7 @@ export type $CustomerSessionPayload<ExtArgs extends runtime.Types.Extensions.Int
     id: string
     tableId: string | null
     tableNumber: string | null
+    customerName: string | null
     status: string
     expiresAt: Date | null
     createdAt: Date
@@ -834,6 +861,7 @@ export interface CustomerSessionFieldRefs {
   readonly id: Prisma.FieldRef<"CustomerSession", 'String'>
   readonly tableId: Prisma.FieldRef<"CustomerSession", 'String'>
   readonly tableNumber: Prisma.FieldRef<"CustomerSession", 'String'>
+  readonly customerName: Prisma.FieldRef<"CustomerSession", 'String'>
   readonly status: Prisma.FieldRef<"CustomerSession", 'String'>
   readonly expiresAt: Prisma.FieldRef<"CustomerSession", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"CustomerSession", 'DateTime'>
