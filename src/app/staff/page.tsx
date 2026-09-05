@@ -11,13 +11,17 @@ import {
   User,
   ShoppingBag,
   Bell,
+  Printer,
 } from "lucide-react";
+import ThermalReceiptModal from "@/components/receipt/ThermalReceiptModal";
 
 export default function DedicatedStaffPage() {
   const [tickets, setTickets] = useState<SupportTicketData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [activeTab, setActiveTab] = useState<"support" | "orders">("support");
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<OrderData | null>(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -257,6 +261,7 @@ export default function DedicatedStaffPage() {
                   <th className="py-3 px-4">Total</th>
                   <th className="py-3 px-4">Kitchen Status</th>
                   <th className="py-3 px-4">Waktu</th>
+                  <th className="py-3 px-4 text-center">Struk</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -290,6 +295,20 @@ export default function DedicatedStaffPage() {
                     <td className="py-3.5 px-4 text-zinc-500">
                       {formatTimeAgo(order.createdAt)}
                     </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedReceiptOrder(order);
+                          setIsReceiptOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-white text-[11px] font-extrabold shadow-xs transition-all cursor-pointer group"
+                        title="Cetak Struk Pembayaran"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-amber-400 group-hover:text-zinc-950 transition-colors" />
+                        <span>Cetak</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -297,6 +316,14 @@ export default function DedicatedStaffPage() {
           </div>
         )}
       </main>
+
+      {/* Printable Thermal Receipt Modal */}
+      <ThermalReceiptModal
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+        order={selectedReceiptOrder}
+        mode="CUSTOMER"
+      />
     </div>
   );
 }
