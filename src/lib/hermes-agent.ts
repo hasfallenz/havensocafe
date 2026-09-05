@@ -466,11 +466,18 @@ const INDONESIAN_STOPWORDS = new Set([
   "halo", "hai", "helo", "hello", "hey", "hy", "oi", "oit", "woi", "woy", "p", "pe", "ping", "pagi", "siang", "sore", "malam",
   "permisi", "punten", "sampurasun", "spada", "assalamualaikum", "waalaikumsalam", "nanya", "tanya",
   "apa", "aja", "ada", "saja", "tolong", "bisa", "minta", "saya", "aku", "gw", "gue",
-  "lu", "kamu", "dia", "mereka", "kita", "kami", "lagi", "terus", "trus", "dan", "sama",
+  "lu", "kamu", "dia", "mereka", "kita", "kami", "lagi", "lgi", "lg", "terus", "trus", "dan", "sama", "sm",
   "atau", "buat", "untuk", "meja", "sini", "situ", "jir", "yok", "yuk", "kuy",
   "rekomen", "rekomendasi", "enak", "mantap", "minum", "makan", "makanan", "minuman",
-  "nyobain", "coba", "test", "tes", "testing", "cek", "check", "tuh", "itu", "yang",
-  "kek", "gmn", "gimana", "doang"
+  "nyobain", "coba", "test", "tes", "testing", "cek", "check", "tuh", "itu", "yang", "yg",
+  "kek", "gmn", "gimana", "doang", "dunk", "dng",
+  "baru", "bikin", "bikinin", "ulang", "mulai", "ganti", "tukar",
+  "tambah", "nambah", "nambahin", "tambahan", "orderan", "pesanan", "ngorder",
+  "dulu", "dlu", "dahulu", "sekarang", "skrg", "nanti", "ntar", "tadi", "tdi", "kemarin", "besok",
+  "udah", "sudah", "sdh", "udh", "uda", "dah", "belum", "blm", "belom",
+  "iya", "yoi", "yep", "yap", "siap", "boleh", "bleh", "bs", "bsa", "tlg",
+  "kasih", "kasi", "bener", "bnr", "beneran", "betul", "btl", "oke", "ok", "okay", "sip",
+  "jadi", "jdi", "gini", "gitu", "ginih", "gituh", "aj", "ajah"
 ]);
 
 export function matchMenuItem(
@@ -528,11 +535,11 @@ export function matchMenuItem(
     }
   }
 
-  // 6. Typo fuzzy distance check
+  // 6. Typo fuzzy distance check (MUST be at least 5 characters to avoid corrupting short everyday words)
   const nonStopWords = clean
     .split(/\s+/)
     .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
-    .filter((w) => w.length >= 4 && !INDONESIAN_STOPWORDS.has(w));
+    .filter((w) => w.length >= 5 && !INDONESIAN_STOPWORDS.has(w));
 
   if (nonStopWords.length === 0) return null;
 
@@ -541,9 +548,9 @@ export function matchMenuItem(
 
   for (const word of nonStopWords) {
     for (const [alias, canonicalName] of Object.entries(SLANG_ALIASES)) {
-      if (alias.length < 4) continue;
+      if (alias.length < 5) continue;
       const dist = levenshteinDistance(word, alias);
-      const maxAllowedDist = alias.length > 6 ? 2 : 1;
+      const maxAllowedDist = alias.length > 7 ? 2 : 1;
       if (dist <= maxAllowedDist && dist < bestDistance) {
         bestDistance = dist;
         const found = menuItems.find(
@@ -554,10 +561,11 @@ export function matchMenuItem(
     }
 
     for (const item of menuItems) {
-      const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 4);
+      const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 5);
       for (const iw of itemWords) {
+        if (iw.length < 5) continue;
         const dist = levenshteinDistance(word, iw);
-        const maxAllowedDist = iw.length > 6 ? 2 : 1;
+        const maxAllowedDist = iw.length > 7 ? 2 : 1;
         if (dist <= maxAllowedDist && dist < bestDistance) {
           bestDistance = dist;
           bestItem = item;
@@ -1250,7 +1258,7 @@ export async function processHermesAgentRequest(
   const isPureDebit =
     !isPaidIntent &&
     (/^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+)?(debit|debet|dbt|kartu\s*debit|kartu\s*debet|krtu\s*debit|krtu\s*debet|kartu|krtu|card|edc|mesin\s*edc|msin\s*edc|gesek|gesek\s*kartu|kartu\s*gesek|kartu\s*kredit)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
-    (/\b(debit|debet|dbt|kartu\s*debit|edc|mesin\s*edc|gesek)\b/i.test(lowerCheckMsg) && !/\b(qris|qros|qriz|barcode|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && !!extractedName));
+    (/\b(debit|debet|dbt|kartu\s*debit|edc|mesin\s*edc|gesek)\b/i.test(lowerCheckMsg) && !/\b(qris|qros|qriz|barcode|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && /\b(mau|mo|mw|pake|pakai|bayar|byr|via|lewat|pilih)\b/i.test(lowerCheckMsg)));
 
   if (isPureDebit && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -1273,7 +1281,7 @@ export async function processHermesAgentRequest(
   const isPureQris =
     !isPaidIntent &&
     (/^(?:mau\s+|mo\s+|mw\s+|pake\s+|pke\s+|pakai\s+|pkai\s+|bayar\s+|byr\s+|byar\s+|via\s+|lewat\s+|minta\s+|tampilin\s+|tampilkan\s+|tunjukin\s+|tunjukkin\s+|liat\s+)?(qris|qros|qriz|qriss|barcode|barcod|barkod|barkode|scan|skan|scan\s*barcode|skan\s*barcode|scan\s*qris|skan\s*qris|barcode\s*qris)(\s+aja|\s+aj|\s+ajah|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+min)?$/i.test(lowerCheckMsg) ||
-    (/\b(qris|qros|qriz|qriss|barcode|barcod|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(debit|debet|edc)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && !!extractedName));
+    (/\b(qris|qros|qriz|qriss|barcode|barcod|barkod|scan|skan)\b/i.test(lowerCheckMsg) && !/\b(debit|debet|edc)\b/i.test(lowerCheckMsg) && !/\b(verifikasi|memverifikasi|sudah|udah|bukti)\b/i.test(lowerCheckMsg) && /\b(mau|mo|mw|pake|pakai|bayar|byr|via|lewat|pilih|scan|skan|tampilin|tampilkan|tunjukin)\b/i.test(lowerCheckMsg)));
 
   if (isPureQris && context.currentCartItems && context.currentCartItems.length > 0) {
     const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
@@ -1292,37 +1300,7 @@ export async function processHermesAgentRequest(
     };
   }
 
-  // 6D. Customer Answering Name Prompt
-  const lastAiMessage = [...messageHistory].reverse().find((m) => m.senderType !== "CUSTOMER");
-  const isAnsweringNamePrompt =
-    lastAiMessage &&
-    (lastAiMessage.content.toLowerCase().includes("atas nama siapa") ||
-      lastAiMessage.content.toLowerCase().includes("nama siapa") ||
-      lastAiMessage.content.toLowerCase().includes("dengan kakak siapa") ||
-      lastAiMessage.content.toLowerCase().includes("pesanan ini atas nama siapa"));
-
-  if (
-    isAnsweringNamePrompt &&
-    extractedName &&
-    !isPureDebit &&
-    !isPureQris &&
-    context.currentCartItems &&
-    context.currentCartItems.length > 0
-  ) {
-    return {
-      reply: `Terima kasih Kak ${extractedName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`,
-      actions: [
-        {
-          type: "SET_CUSTOMER_NAME",
-          customerName: extractedName,
-        },
-      ],
-      customerName: extractedName,
-      intent: "CUSTOMER_NAME_CONFIRMED",
-    };
-  }
-
-  // 6E. Customer Checkout / Finished Ordering ("udah itu aja", "uda itu aj", "cukup", "bayar", "checkout", "beres", "kelar")
+  // 6D. Customer Checkout / Finished Ordering ("udah itu aja", "uda itu aj", "cukup", "bayar", "checkout", "beres", "kelar")
   const isPureCheckout =
     /^(udah\s*itu\s*aja|uda\s*itu\s*aja|udh\s*itu\s*aja|dah\s*itu\s*aja|udah\s*itu\s*aj|uda\s*itu\s*aj|udh\s*itu\s*aj|dah\s*itu\s*aj|udah\s*itu\s*ajah|udh\s*itu\s*ajah|itu\s*aja|itu\s*aj|itu\s*ajah|itu\s*aja\s*dah|itu\s*aj\s*deh|udah\s*aja|uda\s*aja|udh\s*aja|dah\s*aja|cukup|ckup|ckp|sudah\s*cukup|udah\s*cukup|uda\s*cukup|udh\s*cukup|dah\s*cukup|cukup\s*itu\s*aja|cukup\s*ya|cukup\s*deh|cukup\s*kak|cukup\s*min|ckup\s*kak|ckup\s*min|ga\s*ada\s*lagi|gak\s*ada\s*lagi|gk\s*ada\s*lagi|ga\s*ada\s*lg|gak\s*ada\s*lg|gk\s*ada\s*lg|udah\s*pas|uda\s*pas|udh\s*pas|sudah\s*pas|pas\s*kak|pas\s*min|udah\s*sesuai|uda\s*sesuai|sudah\s*sesuai|mau\s*bayar|mo\s*bayar|mw\s*bayar|mau\s*byr|mo\s*byr|mw\s*byr|lanjut\s*bayar|langsung\s*bayar|siap\s*bayar|checkout|cekout|gas|gass|gaskeun|lanjut|beres|udah\s*beres|uda\s*beres|udh\s*beres|beres\s*kak|beres\s*min|kelar|udah\s*kelar|uda\s*kelar|udh\s*kelar|kelar\s*kak|kelar\s*min|itu\s*doang|udh\s*itu\s*doang|uda\s*itu\s*doang|udah\s*itu\s*doang|dah\s*itu\s*doang|segitu\s*aja|segitu\s*aj|sgitu\s*aja|sgitu\s*aj|sgtu\s*aja|udah\s*min|udah\s*kak|udh\s*min|udh\s*kak|uda\s*min|uda\s*kak)$/i.test(lowerCheckMsg);
 
@@ -1342,6 +1320,54 @@ export async function processHermesAgentRequest(
         intent: "ASK_PAYMENT_METHOD",
       };
     }
+  }
+
+  // 6E. Customer Answering Name Prompt
+  const lastAiMessage = [...messageHistory].reverse().find((m) => m.senderType !== "CUSTOMER");
+  const previousAiAskedName =
+    lastAiMessage &&
+    (lastAiMessage.content.toLowerCase().includes("atas nama siapa") ||
+      lastAiMessage.content.toLowerCase().includes("nama siapa") ||
+      lastAiMessage.content.toLowerCase().includes("dengan kakak siapa") ||
+      lastAiMessage.content.toLowerCase().includes("pesanan ini atas nama siapa"));
+
+  const isExplicitNameMessage =
+    /\b(?:atas\s*nama|ats\s*nama|a\/n|a\.n\.?|nama\s*saya|namaku|nm\s*saya|nama\s*gw|nama\s*gue)\b/i.test(lowerCheckMsg);
+
+  const isAnsweringNamePrompt = Boolean(
+    previousAiAskedName &&
+    !lowerCheckMsg.includes("mau pesen") &&
+    !lowerCheckMsg.includes("pesen lagi") &&
+    !lowerCheckMsg.includes("pesen baru") &&
+    !lowerCheckMsg.includes("order lagi") &&
+    !lowerCheckMsg.includes("ada apa") &&
+    !lowerCheckMsg.includes("menu") &&
+    !isPureDebit &&
+    !isPureQris &&
+    !isPaidIntent &&
+    !isPureCheckout &&
+    extractCustomerName(userMessage, messageHistory)
+  );
+
+  const answeredName = isAnsweringNamePrompt ? extractCustomerName(userMessage, messageHistory) : null;
+
+  if (
+    isAnsweringNamePrompt &&
+    answeredName &&
+    context.currentCartItems &&
+    context.currentCartItems.length > 0
+  ) {
+    return {
+      reply: `Terima kasih Kak ${answeredName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`,
+      actions: [
+        {
+          type: "SET_CUSTOMER_NAME",
+          customerName: answeredName,
+        },
+      ],
+      customerName: answeredName,
+      intent: "CUSTOMER_NAME_CONFIRMED",
+    };
   }
 
   const isOngoingConversation = messageHistory.some((m) => m.senderType === "CUSTOMER");
@@ -1461,10 +1487,10 @@ export async function processHermesAgentRequest(
   }
 
   // ============================================================================
-  // 8. GENERAL ORDER INTENT ("mau pesen", "mo pesen", "mw pesen", "psn dong", "bisa order", etc.)
+  // 8. GENERAL ORDER INTENT ("mau pesen", "mau pesen lgi", "mau pesen baru", "psn dong", "bisa order", etc.)
   // ============================================================================
   const orderPhraseRegex =
-    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|bang\s+|kak\s+|ka\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+|misi\s+|permisi\s+)?(mau|mo|mw|pengen|pngen|pngn|pingin|ingin|bisa|bs|tolong|mari)?\s*(pesen|pesan|pesn|psen|psn|pezen|order|ordr|odr|beli|bli|ngorder)(\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+gk|\s+ngga|\s+bisa|\s+dulu)?\??$/i;
+    /^(?:halo\s+|hai\s+|p\s+|pe\s+|poe\s+|bang\s+|kak\s+|ka\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+|misi\s+|permisi\s+)?(mau|mo|mw|pengen|pngen|pngn|pingin|ingin|bisa|bs|tolong|mari)?\s*(pesen|pesan|pesn|psen|psn|pezen|order|ordr|odr|beli|bli|ngorder|nambah|tambah)(?:\s+lagi|\s+lgi|\s+lg|\s+baru|\s+dong|\s+dng|\s+ya|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+gk|\s+ngga|\s+bisa|\s+dulu)*\??$/i;
 
   const isGeneralOrderIntent =
     (orderPhraseRegex.test(lowerCheckMsg) ||
@@ -1481,6 +1507,15 @@ export async function processHermesAgentRequest(
       normalizedMsg === "mo psn" ||
       normalizedMsg === "mw psn" ||
       normalizedMsg === "mau pesn dong" ||
+      normalizedMsg === "mau pesen lgi" ||
+      normalizedMsg === "mau pesen lagi" ||
+      normalizedMsg === "mau pesen baru" ||
+      normalizedMsg === "pesen lagi" ||
+      normalizedMsg === "pesen lgi" ||
+      normalizedMsg === "pesen baru" ||
+      normalizedMsg === "order lagi" ||
+      normalizedMsg === "nambah lagi" ||
+      normalizedMsg === "tambah lagi" ||
       normalizedMsg === "psn dong" ||
       normalizedMsg === "psen dong" ||
       normalizedMsg === "pesen dong" ||
@@ -1496,10 +1531,114 @@ export async function processHermesAgentRequest(
     matchMenuItem(normalizedMsg, menuItems) === null;
 
   if (isGeneralOrderIntent) {
+    const knownCustomer = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+    const greeting = knownCustomer ? ` Kak ${knownCustomer}` : " kak";
+    const additionalWord = knownCustomer || isOngoingConversation ? " lagi" : "";
     return {
-      reply: `Siap kak! Mau pesan menu apa untuk Meja **${tableNum}** hari ini? Silakan sebutkan nama menu kopi atau makanan yang ingin dipesan ya 😊`,
+      reply: `Siap${greeting}! Mau pesan menu apa${additionalWord} untuk Meja **${tableNum}** hari ini? Silakan sebutkan nama menu kopi atau makanan yang ingin dipesan ya 😊`,
       actions: [],
+      customerName: knownCustomer || undefined,
       intent: "ORDER_INQUIRY",
+    };
+  }
+
+  // ============================================================================
+  // 8B. CAFE FACILITIES & FAQ FAST-PATH (Wi-Fi, Toilet, Musholla, Colokan, Jam Buka, etc.)
+  // ============================================================================
+  const activeKnownName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+  const activeGreeting = activeKnownName ? ` Kak ${activeKnownName}` : " kak";
+
+  // Wi-Fi Inquiry
+  if (
+    /\b(wifi|wi-fi|hotspot|internet)\b/i.test(lowerCheckMsg) &&
+    /\b(apa|pas|pass|password|pw|sandi|koneksi|ada|bisa|akses)\b/i.test(lowerCheckMsg)
+  ) {
+    return {
+      reply: `Untuk Wi-Fi di Havenso Cafe, kakak bisa hubungkan ke SSID: **Havenso Cafe - Guest** dengan password: **havenso2026**. Koneksinya cepat dan stabil buat santai maupun nugas${activeGreeting}! 📶😊`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Restroom / Toilet Inquiry
+  if (/\b(toilet|wc|kamar\s*mandi|restroom|lavatory|urinal|wastafel)\b/i.test(lowerCheckMsg)) {
+    return {
+      reply: `Toilet dan wastafel Havenso Cafe berada di lorong samping kasir area indoor${activeGreeting}. Fasilitasnya bersih, nyaman, dan selalu wangi, silakan digunakan ya! 🚻😊`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Musholla / Prayer Room Inquiry
+  if (/\b(mushola|musholla|musola|musolla|sholat|solat|ibadah|tempat\s*sholat|tempat\s*wudhu)\b/i.test(lowerCheckMsg)) {
+    return {
+      reply: `Havenso Cafe menyediakan Musholla nyaman dan bersih di lantai 2 lengkap dengan area wudhu terpisah, sajadah, sarung, dan mukena${activeGreeting} 🕌😊. Silakan langsung menuju tangga samping lorong kasir ya kak.`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Power Outlet / Colokan / Charging Inquiry
+  if (/\b(colokan|stopkontak|stop\s*kontak|cas|ngecas|charge|charger|batre|baterai)\b/i.test(lowerCheckMsg)) {
+    return {
+      reply: `Hampir di setiap sudut meja Havenso Cafe (terutama area indoor dan sofa) sudah dilengkapi stopkontak / colokan listrik${activeGreeting}. Nyaman banget buat laptopan atau isi daya gadget sambil ngopi santai! 🔌☕`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Smoking / Outdoor Area Inquiry
+  if (/\b(smoking|rokok|merokok|asbak|outdoor|teras)\b/i.test(lowerCheckMsg)) {
+    return {
+      reply: `Kami menyediakan area Smoking / Outdoor yang sejuk dan asri di bagian teras samping dan belakang kafe${activeGreeting}. Untuk area indoor ber-AC merupakan area bebas asap rokok (non-smoking) demi kenyamanan bersama 🌿☕`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Operating Hours / Jam Buka & Tutup Inquiry
+  if (
+    /\b(jam|buka|tutup|operasional)\b/i.test(lowerCheckMsg) &&
+    /\b(buka\s*jam|tutup\s*jam|jam\s*buka|jam\s*tutup|jam\s*berapa|operasional|sampe\s*jam|sampai\s*jam)\b/i.test(lowerCheckMsg)
+  ) {
+    return {
+      reply: `Havenso Cafe buka setiap hari mulai pukul **09.00 WIB hingga 23.00 WIB**${activeGreeting}. Dapur dan bar kami selalu siap menyajikan pesanan terbaik kakak! ⏰☕`,
+      actions: [],
+      intent: "FACILITY_INFO",
+    };
+  }
+
+  // Order Status / Delivery Inquiry ("pesanan saya", "belum sampai", "masih lama", etc.)
+  if (
+    /\b(pesanan|makanan|minuman|kopi|orderan)\b/i.test(lowerCheckMsg) &&
+    /\b(sampai\s*mana|udah\s*mana|siap|belum|blm|lama|kapan|nyampe|datang|diantar|antar|status)\b/i.test(lowerCheckMsg)
+  ) {
+    return {
+      reply: `Pesanan untuk Meja **${tableNum}** saat ini sedang disiapkan dengan cermat oleh tim Barista & Dapur kami${activeGreeting}. Mohon ditunggu sebentar ya, begitu siap staf kami akan langsung mengantarkannya ke meja kakak! ☕👨‍🍳`,
+      actions: [],
+      intent: "ORDER_STATUS_INQUIRY",
+    };
+  }
+
+  // Casual Thanks / Gratitude ("makasih ya", "makasi min", "thank you", etc.)
+  if (
+    /^(makasih|makasi|mksh|terima\s*kasih|tq|thx|thanks|thank\s*you|nuhun|suwun)(\s+banyak|\s+ya|\s+kak|\s+ka|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh)*$/i.test(lowerCheckMsg)
+  ) {
+    return {
+      reply: `Sama-sama${activeGreeting}! Senang sekali bisa melayani kakak di Havenso Cafe 😊 Selamat menikmati waktunya, jika butuh bantuan atau ingin pesan lagi tinggal panggil saya ya kak! ☕👨‍🍳`,
+      actions: [],
+      intent: "CASUAL_GRATITUDE",
+    };
+  }
+
+  // AI / Waiter Identity ("kamu siapa", "nama kamu siapa", "ini siapa")
+  if (
+    /^(kamu\s+siapa|ini\s+siapa|nama\s+kamu\s+siapa|nama\s+lo\s+siapa|lu\s+siapa|siapa\s+kamu|siapa\s+nih|siapa\s+ini)(\s+kak|\s+min|\s+deh|\s+ya)?\??$/i.test(lowerCheckMsg)
+  ) {
+    return {
+      reply: `Saya **Havenso AI**, Smart Barista & Virtual Waiter resmi Havenso Cafe yang siap melayani Meja **${tableNum}**! Saya bisa bantu rekomendasikan menu, catat pesanan, hingga proses pembayaran langsung di meja kakak 😊`,
+      actions: [],
+      intent: "IDENTITY_INFO",
     };
   }
 
@@ -2604,7 +2743,7 @@ ${groupedCatalogText}
       const isCustomizingItem = actions.some((a) => a.type === "CUSTOMIZE_ITEM");
       const isRemovingItem = actions.some((a) => a.type === "REMOVE_ITEM");
 
-      if ((isAnsweringNamePrompt || extractedName) && !isQrisIntent && !isDebitIntent) {
+      if ((isAnsweringNamePrompt || isExplicitNameMessage) && !isQrisIntent && !isDebitIntent) {
         // Customer is answering their name, NOT choosing payment method yet!
         // Strip any premature payment tool calls
         for (let i = actions.length - 1; i >= 0; i--) {
@@ -2642,7 +2781,9 @@ ${groupedCatalogText}
         !actions.some((a) => a.type === "SHOW_QRIS") &&
         !actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT") &&
         !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
-        (isProceedToPayment || isAnsweringNamePrompt || !!extractedName)
+        context.currentCartItems &&
+        context.currentCartItems.length > 0 &&
+        (isProceedToPayment || isAnsweringNamePrompt)
       ) {
         // Customer name is known, now ask QRIS or Kartu Debit without fast buttons:
         finalReply = `Terima kasih Kak ${effectiveCustomerName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`;
@@ -2658,8 +2799,9 @@ ${groupedCatalogText}
         const nameGreeting = effectiveCustomerName ? ` Kak ${effectiveCustomerName}` : "";
         finalReply = `Siap${nameGreeting}! Ini barcode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja ${tableNum}. Silakan scan barcode di layar ya 😊`;
       } else if (!finalReply) {
+        const nameGreeting = effectiveCustomerName ? ` Kak ${effectiveCustomerName}` : " kak";
         finalReply = recentHistory.length > 0
-          ? `Iya kak, saya siap melayani untuk Meja ${tableNum}. Ada hidangan atau minuman yang bisa saya siapkan? 😊`
+          ? `Iya${nameGreeting}, saya siap melayani untuk Meja ${tableNum}. Ada hidangan atau minuman yang bisa saya siapkan? 😊`
           : `Halo kak! Selamat datang di Havenso Cafe 😊 Ada yang bisa saya bantu siapkan untuk Meja ${tableNum} hari ini?`;
       }
 
