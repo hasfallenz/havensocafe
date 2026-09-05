@@ -107,7 +107,9 @@ const server = http.createServer(async (req, res) => {
         // Multi-model resilience pool: If one model hits rate limit (429), immediately fallback!
         const candidateModels = [
           "openai/gpt-oss-120b",
+          "llama-3.3-70b-versatile",
           "qwen/qwen3.8-27b",
+          "llama-3.1-8b-instant",
           "openai/gpt-oss-20b",
           "qwen/qwen3.6-27b",
         ];

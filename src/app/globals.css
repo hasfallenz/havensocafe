@@ -10,6 +10,11 @@
     --accent-blue: #0284c7;
     --accent-coral: #f43f5e;
   }
+
+  strong, b {
+    font-weight: 800 !important;
+    color: #09090b !important;
+  }
 }
 
 /* Custom Scrollbar */

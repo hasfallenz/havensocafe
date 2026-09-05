@@ -129,6 +129,11 @@ export const SLANG_ALIASES: Record<string, string> = {
   "nasi sapi": "Beef Bowl + Rice",
   "rice bowl sapi": "Beef Bowl + Rice",
   "daging sapi": "Beef Bowl + Rice",
+  "chicken pop": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chicken pop dong": "Chicken Popcorn Garlic Parmesan + Rice",
+  "chick pop": "Chicken Popcorn Garlic Parmesan + Rice",
+  "popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
+  "pop corn": "Chicken Popcorn Garlic Parmesan + Rice",
   "chicken popcorn": "Chicken Popcorn Garlic Parmesan + Rice",
   "popcorn chicken": "Chicken Popcorn Garlic Parmesan + Rice",
   "chicken popcorn garlic parmesan": "Chicken Popcorn Garlic Parmesan + Rice",
@@ -136,13 +141,18 @@ export const SLANG_ALIASES: Record<string, string> = {
   "popcorn ayam": "Chicken Popcorn Garlic Parmesan + Rice",
   "garlic parmesan": "Chicken Popcorn Garlic Parmesan + Rice",
   ayam: "Chicken Popcorn Garlic Parmesan + Rice",
+  scramble: "Scramble Egg + Rice",
+  scrambled: "Scramble Egg + Rice",
   "scramble egg": "Scramble Egg + Rice",
   "scrambled egg": "Scramble Egg + Rice",
   "scramble egg + rice": "Scramble Egg + Rice",
   "scrambled egg + rice": "Scramble Egg + Rice",
   telur: "Scramble Egg + Rice",
+  telor: "Scramble Egg + Rice",
   "nasi telur": "Scramble Egg + Rice",
+  "nasi telor": "Scramble Egg + Rice",
   "telur orak arik": "Scramble Egg + Rice",
+  "telor orak arik": "Scramble Egg + Rice",
   ramen: "Ramen",
   "mie ramen": "Ramen",
   "ramen jepang": "Ramen",
@@ -372,6 +382,211 @@ export function capitalizeName(str: string): string {
     .join(" ");
 }
 
+export interface CustomizationExtraction {
+  isCustomization: boolean;
+  notes?: string;
+  quantity?: number;
+  isRemove?: boolean;
+}
+
+export function detectCustomizationIntent(userMessage: string): CustomizationExtraction {
+  if (!userMessage) return { isCustomization: false };
+  const lower = userMessage.toLowerCase().trim();
+
+  // 1. Check removal / cancel
+  const isRemove = /\b(hapus|batal|batalin|batalkan|buang|ga\s*jadi|gak\s*jadi|gajadi|gakjadi|jangan\s*jadi|cancel|kurangi|kurangin|ngga\s*jadi|enggak\s*jadi)\b/i.test(lower);
+  if (isRemove) {
+    return { isCustomization: true, isRemove: true };
+  }
+
+  // 2. Check taste notes / special instructions
+  const notesParts: string[] = [];
+
+  // Sugar Level
+  if (
+    /\b(less\s*sugar|less\s*manis|low\s*sugar|half\s*sugar)\b/i.test(lower) ||
+    /\bgula(?:nya|\s+nya)?\s*(?:less|dikit|sedikit|kurang|setengah|separuh|separo|50%|30%|25%|rendah)\b/i.test(lower) ||
+    /\b(?:dikit|sedikit|kurang|rendah)\s*gula\b/i.test(lower) ||
+    /\bkurang(?:in)?\s*gula\b/i.test(lower) ||
+    /\bjangan\s*(?:terlalu\s*)?manis\b/i.test(lower) ||
+    /\b(?:gak|ga|tidak|tdk)\s*(?:terlalu|begitu)\s*manis\b/i.test(lower) ||
+    /\bagak\s*kurang\s*manis\b/i.test(lower)
+  ) {
+    notesParts.push("Less Sugar");
+  } else if (
+    /\b(no\s*sugar|zero\s*sugar|0%\s*sugar|sugar\s*free|bebas\s*gula|gula\s*nol)\b/i.test(lower) ||
+    /\btanpa\s*(?:gula|pemanis)\b/i.test(lower) ||
+    /\b(?:jangan|gak|ga|tidak|tdk)\s*(?:pake|pakai)?\s*gula\b/i.test(lower)
+  ) {
+    notesParts.push("No Sugar");
+  } else if (
+    /\b(normal\s*sugar|100%\s*sugar)\b/i.test(lower) ||
+    /\bgula(?:nya|\s+nya)?\s*normal\b/i.test(lower) ||
+    /\bmanis\s*normal\b/i.test(lower)
+  ) {
+    notesParts.push("Normal Sugar");
+  } else if (
+    /\b(extra\s*sugar|ekstra\s*sugar)\b/i.test(lower) ||
+    /\btambah(?:kan)?\s*gula\b/i.test(lower) ||
+    /\blebih\s*manis\b/i.test(lower) ||
+    /\bmanis\s*(?:banget|pol|sekali)\b/i.test(lower) ||
+    /\bbanyak(?:in)?\s*gula\b/i.test(lower) ||
+    /\bgula(?:nya|\s+nya)?\s*banyak\b/i.test(lower)
+  ) {
+    notesParts.push("Extra Sugar");
+  } else if (
+    /\bgula(?:nya|\s+nya)?\s*(?:di)?pisah(?:kan)?\b/i.test(lower) ||
+    /\bpisah(?:in|kan)?\s*gula\b/i.test(lower)
+  ) {
+    notesParts.push("Gula Dipisah");
+  }
+
+  // Ice Level
+  if (
+    /\b(less\s*ice|low\s*ice|half\s*ice)\b/i.test(lower) ||
+    /\bes(?:nya|\s+nya)?\s*(?:less|dikit|sedikit|kurang|separuh|setengah|separo)\b/i.test(lower) ||
+    /\b(?:dikit|sedikit|kurang)\s*es\b/i.test(lower) ||
+    /\bkurang(?:in)?\s*es\b/i.test(lower) ||
+    /\bes(?:nya|\s+nya)?\s*jangan\s*banyak\b/i.test(lower) ||
+    /\bjangan\s*banyak\s*es\b/i.test(lower)
+  ) {
+    notesParts.push("Less Ice");
+  } else if (
+    /\b(no\s*ice|zero\s*ice|0%\s*ice)\b/i.test(lower) ||
+    /\btanpa\s*es\b/i.test(lower) ||
+    /\b(?:jangan|gak|ga|tidak|tdk)\s*(?:pake|pakai)?\s*es\b/i.test(lower)
+  ) {
+    notesParts.push("No Ice");
+  } else if (/\b(?:disajikan\s+|bikin\s+|minta\s+)?(?:panas|hot)\b/i.test(lower)) {
+    notesParts.push("Hot / Panas");
+  } else if (/\b(?:hangat|anget)\b/i.test(lower)) {
+    notesParts.push("Hangat");
+  } else if (/\b(normal\s*ice)\b/i.test(lower) || /\bes(?:nya|\s+nya)?\s*normal\b/i.test(lower)) {
+    notesParts.push("Normal Ice");
+  } else if (
+    /\b(extra\s*ice|ekstra\s*ice)\b/i.test(lower) ||
+    /\bes(?:nya|\s+nya)?\s*(?:banyak|ekstra)\b/i.test(lower) ||
+    /\bbanyak(?:in)?\s*es\b/i.test(lower) ||
+    /\btambah\s*es\b/i.test(lower)
+  ) {
+    notesParts.push("Extra Ice");
+  } else if (
+    /\bes(?:nya|\s+nya)?\s*(?:di)?pisah(?:kan)?\b/i.test(lower) ||
+    /\bpisah(?:in|kan)?\s*es\b/i.test(lower)
+  ) {
+    notesParts.push("Es Dipisah");
+  }
+
+  // Spice Level
+  if (
+    /\b(?:tidak|gak|ga|tdk|jangan)\s*(?:pake|pakai)?\s*(?:pedas|pedes|cabai|cabe|sambal|sambel)\b/i.test(lower) ||
+    /\btanpa\s*(?:pedas|pedes|cabai|cabe|sambal|sambel)\b/i.test(lower) ||
+    /\b(?:level\s*0|cabe\s*0)\b/i.test(lower)
+  ) {
+    notesParts.push("Tidak Pedas");
+  } else if (
+    /\b(?:pedas|pedes)\s*(?:banget|gila|mampus|pol|sekali)\b/i.test(lower) ||
+    /\b(?:ekstra|extra)\s*(?:pedas|pedes)\b/i.test(lower) ||
+    /\blevel\s*(?:2|3|4|5|max|pedas)\b/i.test(lower) ||
+    /\bbanyak(?:in)?\s*(?:cabe|cabai|sambal|sambel)\b/i.test(lower) ||
+    /\btambah\s*(?:sambal|sambel|cabai|cabe)\b/i.test(lower)
+  ) {
+    notesParts.push("Ekstra Pedas");
+  } else if (
+    /\b(?:pedas|pedes)\s*sedang\b/i.test(lower) ||
+    /\bsedang\s*aja\b/i.test(lower) ||
+    /\bagak\s*(?:pedas|pedes)\b/i.test(lower) ||
+    /\blevel\s*1\b/i.test(lower) ||
+    /\bcabe\s*(?:1|2)\b/i.test(lower)
+  ) {
+    notesParts.push("Pedas Sedang");
+  } else if (
+    /\b(?:sambal|sambel|cabai|cabe)(?:nya|\s+nya)?\s*(?:di)?pisah(?:kan)?\b/i.test(lower) ||
+    /\bpisah(?:in|kan)?\s*(?:sambal|sambel|cabai|cabe)\b/i.test(lower)
+  ) {
+    notesParts.push("Sambal Dipisah");
+  }
+
+  // Specific exclusions & side preparations
+  if (/\b(?:tanpa|jangan\s*(?:pake|pakai)?|gak\s*(?:pake|pakai)?|ga\s*(?:pake|pakai)?)\s*(?:daun\s+bawang)\b/i.test(lower)) {
+    notesParts.push("Tanpa Daun Bawang");
+  } else if (/\b(?:tanpa|jangan\s*(?:pake|pakai)?|gak\s*(?:pake|pakai)?|ga\s*(?:pake|pakai)?)\s*(?:bawang)\b/i.test(lower) || /\bno\s*onion\b/i.test(lower)) {
+    notesParts.push("Tanpa Bawang");
+  }
+
+  if (/\b(?:tanpa|jangan\s*(?:pake|pakai)?|gak\s*(?:pake|pakai)?|ga\s*(?:pake|pakai)?)\s*(?:seledri)\b/i.test(lower)) {
+    notesParts.push("Tanpa Seledri");
+  }
+
+  if (/\b(?:tanpa|jangan\s*(?:pake|pakai)?|gak\s*(?:pake|pakai)?|ga\s*(?:pake|pakai)?)\s*(?:mayo|mayonaise)\b/i.test(lower)) {
+    notesParts.push("Tanpa Mayo");
+  }
+
+  if (/\bbawang\s*goreng(?:nya|\s+nya)?\s*(?:di)?pisah\b/i.test(lower)) {
+    notesParts.push("Bawang Goreng Dipisah");
+  }
+
+  if (/\b(?:saus|saos)(?:nya|\s+nya)?\s*(?:di)?pisah\b/i.test(lower)) {
+    notesParts.push("Saus Dipisah");
+  }
+
+  if (/\bkuah(?:nya|\s+nya)?\s*(?:di)?pisah\b/i.test(lower)) {
+    notesParts.push("Kuah Dipisah");
+  }
+
+  if (/\bnasi(?:nya|\s+nya)?\s*(?:di)?pisah\b/i.test(lower)) {
+    notesParts.push("Nasi Dipisah");
+  }
+
+  if (/\b(?:setengah|separuh|separo|kurangi)\s*nasi\b/i.test(lower) || /\bnasi\s*(?:setengah|separuh|separo)\b/i.test(lower)) {
+    notesParts.push("Nasi Setengah");
+  }
+
+  // General note phrases like: "tolong ...", "catat ...", "minta ..."
+  const genericMatch = lower.match(/\b(?:tolong|catat|minta|note)\s+([^,.\n]+)/i);
+  if (genericMatch && genericMatch[1]) {
+    const rawNote = genericMatch[1].trim();
+    const cleanNote = rawNote
+      .replace(/\b(ya|deh|dong|nih|aja|saja|kak|bang|mas)\b/gi, "")
+      .trim();
+    if (cleanNote.length > 2 && notesParts.length === 0 && !FOOD_DRINK_TERMS.has(cleanNote)) {
+      notesParts.push(capitalizeName(cleanNote));
+    }
+  }
+
+  // 3. Quantity Change (e.g. "ganti jadi 1", "minta 1 aja", "cuma 1 porsi", "jadi 2", "1 aja")
+  let newQty: number | undefined = undefined;
+  const qtyCorrectionMatch =
+    lower.match(/\b(?:ganti|ubah|jadikan|jadi)\s*(?:ke|menjadi)?\s*(\d+|satu|dua|tiga|empat|lima)\b/i) ||
+    lower.match(/\b(?:minta|cuma|hanya|pesennya|pesannya)\s*(\d+|satu|dua|tiga|empat|lima)\s*(?:aja|saja|porsi|cup|gelas|piring)?\b/i) ||
+    lower.match(/^(\d+|satu|dua|tiga|empat|lima)\s*(?:aja|saja)\s*(?:deh|ya|dong)?$/i);
+
+  if (qtyCorrectionMatch && qtyCorrectionMatch[1]) {
+    const val = qtyCorrectionMatch[1].toLowerCase();
+    if (val === "satu" || val === "1") newQty = 1;
+    else if (val === "dua" || val === "2") newQty = 2;
+    else if (val === "tiga" || val === "3") newQty = 3;
+    else if (val === "empat" || val === "4") newQty = 4;
+    else if (val === "lima" || val === "5") newQty = 5;
+    else {
+      const parsed = parseInt(val, 10);
+      if (parsed > 0 && parsed <= 20) newQty = parsed;
+    }
+  }
+
+  const isCustomization =
+    notesParts.length > 0 ||
+    newQty !== undefined ||
+    /\b(less|sugar|gula|ice|es|pedas|pedes|manis|hangat|panas|anget|sambal|sambel|cabe|cabai)\b/i.test(lower);
+
+  return {
+    isCustomization,
+    notes: notesParts.length > 0 ? notesParts.join(", ") : undefined,
+    quantity: newQty,
+    isRemove: false,
+  };
+}
+
 const FOOD_DRINK_TERMS = new Set([
   "makanan", "minuman", "makan", "minum", "food", "drink", "coffee", "kopi", "teh", "tea",
   "ramen", "beef", "bowl", "chicken", "latte", "americano", "deh", "dong", "nih", "ya",
@@ -380,9 +595,11 @@ const FOOD_DRINK_TERMS = new Set([
   "udah", "sudah", "itu", "ini", "boleh", "kak", "kakak", "bang", "mas", "mba", "mbak"
 ]);
 
-function isInvalidNameCandidate(str: string): boolean {
+export function isInvalidNameCandidate(str: string): boolean {
   const lower = str.toLowerCase().trim();
   if (lower.length < 2 || lower.length > 30) return true;
+  if (lower.includes("[") || lower.includes("]") || lower.includes("(") || lower.includes(")")) return true;
+  if (/^(nama|name|namaaslipelanggan|namapelanggan|kak|kakak|unknown|anon|customer|user|pelanggan|none|null|undefined)$/i.test(lower)) return true;
   if (INDONESIAN_STOPWORDS.has(lower)) return true;
   if (FOOD_DRINK_TERMS.has(lower)) return true;
   if (SLANG_ALIASES[lower]) return true;
@@ -390,6 +607,13 @@ function isInvalidNameCandidate(str: string): boolean {
   if (words.length === 0) return true;
   if (words.every((w) => FOOD_DRINK_TERMS.has(w) || INDONESIAN_STOPWORDS.has(w))) return true;
   return false;
+}
+
+export function cleanCustomerNameArg(val: any): string | null {
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (isInvalidNameCandidate(trimmed)) return null;
+  return capitalizeName(trimmed);
 }
 
 export function extractCustomerName(
@@ -742,6 +966,100 @@ export async function processHermesAgentRequest(
     };
   }
 
+  // 6B. Direct Payment Method Selection (DEBIT / EDC)
+  const isPureDebit =
+    /^(debit|kartu\s*debit|kartu|card|debet|edc|mesin\s*edc|gesek|gesek\s*kartu|pake\s*debit|pakai\s*debit|debit\s*aja|bayar\s*debit|bayar\s*pakai\s*debit|bayar\s*pake\s*debit)$/i.test(lowerCheckMsg);
+
+  if (isPureDebit && context.currentCartItems && context.currentCartItems.length > 0) {
+    const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+    const nameGreeting = activeName ? ` Kak ${activeName}` : "";
+    return {
+      reply: `Baik${nameGreeting}! Permintaan pembayaran via Kartu Debit sudah kami teruskan ke staf kami. Staf kami sedang menuju ke Meja ${tableNum} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️`,
+      actions: [
+        {
+          type: "REQUEST_DEBIT_PAYMENT",
+          customerName: activeName || undefined,
+          paymentMethod: "DEBIT",
+        },
+      ],
+      customerName: activeName || undefined,
+      intent: "REQUEST_DEBIT_PAYMENT",
+    };
+  }
+
+  // 6C. Direct Payment Method Selection (QRIS)
+  const isPureQris =
+    /^(qris|barcode|scan|scan\s*barcode|qris\s*aja|pake\s*qris|pakai\s*qris|bayar\s*qris|tampilin\s*qris|tampilkan\s*qris|bayar\s*pakai\s*qris|bayar\s*pake\s*qris)$/i.test(lowerCheckMsg);
+
+  if (isPureQris && context.currentCartItems && context.currentCartItems.length > 0) {
+    const activeName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+    const nameGreeting = activeName ? ` Kak ${activeName}` : "";
+    return {
+      reply: `Siap${nameGreeting}! Ini barcode QRIS resmi Havenso Cafe untuk pembayaran pesanan Meja ${tableNum}. Silakan scan barcode di layar ya 😊`,
+      actions: [
+        {
+          type: "SHOW_QRIS",
+          customerName: activeName || undefined,
+          paymentMethod: "QRIS",
+        },
+      ],
+      customerName: activeName || undefined,
+      intent: "SHOW_QRIS",
+    };
+  }
+
+  // 6D. Customer Answering Name Prompt
+  const lastAiMessage = [...messageHistory].reverse().find((m) => m.senderType !== "CUSTOMER");
+  const isAnsweringNamePrompt =
+    lastAiMessage &&
+    (lastAiMessage.content.toLowerCase().includes("atas nama siapa") ||
+      lastAiMessage.content.toLowerCase().includes("nama siapa") ||
+      lastAiMessage.content.toLowerCase().includes("dengan kakak siapa") ||
+      lastAiMessage.content.toLowerCase().includes("pesanan ini atas nama siapa"));
+
+  if (
+    isAnsweringNamePrompt &&
+    extractedName &&
+    !isPureDebit &&
+    !isPureQris &&
+    context.currentCartItems &&
+    context.currentCartItems.length > 0
+  ) {
+    return {
+      reply: `Terima kasih Kak ${extractedName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`,
+      actions: [
+        {
+          type: "SET_CUSTOMER_NAME",
+          customerName: extractedName,
+        },
+      ],
+      customerName: extractedName,
+      intent: "CUSTOMER_NAME_CONFIRMED",
+    };
+  }
+
+  // 6E. Customer Checkout / Finished Ordering ("udah itu aja", "cukup", "bayar", "checkout")
+  const isPureCheckout =
+    /^(udah\s*itu\s*aja|udah\s*itu\s*aja\s*dah|itu\s*aja|itu\s*aja\s*dah|cukup|sudah\s*cukup|udah\s*cukup|cukup\s*itu\s*aja|ga\s*ada\s*lagi|gak\s*ada\s*lagi|udah\s*pas|sudah\s*pas|udah\s*sesuai|sudah\s*sesuai|mau\s*bayar|lanjut\s*bayar|siap\s*bayar|checkout|gas|gass|gaskeun|lanjut)$/i.test(lowerCheckMsg);
+
+  if (isPureCheckout && context.currentCartItems && context.currentCartItems.length > 0) {
+    const knownName = cleanCustomerNameArg(context.customerName) || cleanCustomerNameArg(extractedName);
+    if (!knownName) {
+      return {
+        reply: `Baik kak, pesanan untuk Meja ${tableNum} sudah siap. Sebelum diproses, boleh kami tahu pesanan ini atas nama siapa ya kak? Agar bisa dicantumkan di struk kasir 😊`,
+        actions: [],
+        intent: "PROMPT_CUSTOMER_NAME",
+      };
+    } else {
+      return {
+        reply: `Terima kasih Kak ${knownName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`,
+        actions: [],
+        customerName: knownName,
+        intent: "ASK_PAYMENT_METHOD",
+      };
+    }
+  }
+
   const isOngoingConversation = messageHistory.some((m) => m.senderType === "CUSTOMER");
   const isQuestion =
     lowerCheckMsg.includes("?") ||
@@ -847,9 +1165,9 @@ export async function processHermesAgentRequest(
   }
 
   // ============================================================================
-  // 8. GENERAL ORDER INTENT ("mau pesen", "mo pesen", "mw pesen", "bisa pesen?", etc.)
+  // 8. GENERAL ORDER INTENT ("mau pesen", "mo pesen", "mw pesen", "mau pesn dong", "bisa pesen?", etc.)
   // ============================================================================
-  const orderPhraseRegex = /^(halo\s+|hai\s+|p\s+|pe\s+|bang\s+|kak\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+)?(mau|mo|mw|pengen|pingin|ingin|bisa|tolong|mari)?\s*(pesen|pesan|order|beli)(\s+dong|\s+ya|\s+kak|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+ngga|\s+bisa|\s+dulu)?$/i;
+  const orderPhraseRegex = /^(halo\s+|hai\s+|p\s+|pe\s+|bang\s+|kak\s+|dek\s+|kids\s+|min\s+|mas\s+|mba\s+|bro\s+)?(mau|mo|mw|pengen|pingin|ingin|bisa|tolong|mari)?\s*(pesen|pesan|pesn|order|beli)(\s+dong|\s+ya|\s+kak|\s+bang|\s+min|\s+mas|\s+mba|\s+bro|\s+deh|\s+ga|\s+gak|\s+ngga|\s+bisa|\s+dulu)?$/i;
 
   const isGeneralOrderIntent =
     (orderPhraseRegex.test(lowerCheckMsg) ||
@@ -859,8 +1177,13 @@ export async function processHermesAgentRequest(
       lowerCheckMsg === "mw pesan" ||
       lowerCheckMsg === "mau pesen" ||
       lowerCheckMsg === "mau pesan" ||
+      lowerCheckMsg === "mau pesn" ||
+      lowerCheckMsg === "mau pesn dong" ||
+      lowerCheckMsg === "pesen dong" ||
+      lowerCheckMsg === "pesan dong" ||
       lowerCheckMsg === "pesen" ||
       lowerCheckMsg === "pesan" ||
+      lowerCheckMsg === "pesn" ||
       lowerCheckMsg === "order") &&
     matchMenuItem(lowerCheckMsg, menuItems) === null;
 
@@ -1205,13 +1528,14 @@ STANDAR & ETIKA PELAYANAN BINTANG 5 HAVENSO CAFE:
 
    TAHAP 3: EKSEKUSI PEMBAYARAN (SETELAH NAMA DIKETAHUI & CUSTOMER MEMILIH METODE)
    - Jika pelanggan memilih QRIS (misal: "qris", "scan barcode", "pake qris", "qris aja", "scan"):
-     * Panggil tool show_qris_payment(customerName: "[Nama]").
-     * Balas: "Siap Kak [Nama]! Ini barcode QRIS resmi Havenso Cafe untuk Meja ${tableNum}. Silakan scan barcode di layar ya 😊"
+     * Panggil tool show_qris_payment(customerName: "NamaAsliPelanggan").
+     * Balas: "Siap Kak! Ini barcode QRIS resmi Havenso Cafe untuk Meja ${tableNum}. Silakan scan barcode di layar ya 😊"
    - Jika pelanggan memilih Kartu Debit (misal: "kartu debit", "debit", "mesin edc", "edc", "gesek", "kartu"):
-     * Panggil tool request_debit_payment(customerName: "[Nama]").
-     * Balas: "Baik Kak [Nama]! Staf kami sedang menuju ke Meja ${tableNum} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️"
+     * Panggil tool request_debit_payment(customerName: "NamaAsliPelanggan").
+     * Balas: "Baik Kak! Staf kami sedang menuju ke Meja ${tableNum} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Mohon ditunggu sebentar ya kak! 💳🏃‍♂️"
    - Jika sejak awal pelanggan langsung menyebut nama dan metode bayar sekaligus (contoh: "Saya Dimas mau bayar debit"):
      * Langsung panggil request_debit_payment(customerName: "Dimas") tanpa bertanya ulang!
+   - ⛔ DILARANG KERAS memanggil set_customer_name atau tool lainnya dengan nama fiktif seperti "[Nama]", "[nama]", "None", atau "Kakak"! HANYA gunakan nama asli yang nyata jika pelanggan sudah menyebutkannya!
 
 10. ATURAN GAYA BAHASA (RAMAH, BERKELAS, BEBAS DARI KESAN BOT):
    - Gunakan format tebal markdown (contoh: **1x Americano**, **Rp 30.800**) khusus untuk nama menu pesanan dan total harga agar terlihat tegas dan rapi.
@@ -1315,7 +1639,7 @@ ${groupedCatalogText}
       type: "function",
       function: {
         name: "show_qris_payment",
-        description: "Menampilkan kode QRIS resmi Havenso Cafe untuk pembayaran setelah pesanan dan nama pemesan tervalidasi.",
+        description: "Menampilkan barcode QRIS resmi untuk pembayaran. HANYA dipanggil JIKA pelanggan secara eksplisit memilih bayar QRIS atau scan barcode. DILARANG dipanggil saat pelanggan baru menyebutkan namanya!",
         parameters: {
           type: "object",
           properties: {
@@ -1332,7 +1656,7 @@ ${groupedCatalogText}
       type: "function",
       function: {
         name: "request_debit_payment",
-        description: "Memanggil staf untuk membawakan mesin EDC (Kartu Debit) ke meja pelanggan setelah nama pemesan terkonfirmasi.",
+        description: "Memanggil staf untuk membawakan mesin EDC ke meja. HANYA dipanggil JIKA pelanggan secara eksplisit memilih bayar Kartu Debit atau mesin EDC. DILARANG dipanggil saat pelanggan baru menyebutkan namanya!",
         parameters: {
           type: "object",
           properties: {
@@ -1492,20 +1816,22 @@ ${groupedCatalogText}
               menuName: targetItem?.name || fnArgs.menuName,
             });
           } else if (fnName === "set_customer_name") {
-            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
-            actions.push({
-              type: "SET_CUSTOMER_NAME",
-              customerName: detected || undefined,
-            });
+            const detected = cleanCustomerNameArg(fnArgs.customerName) || cleanCustomerNameArg(extractedName);
+            if (detected) {
+              actions.push({
+                type: "SET_CUSTOMER_NAME",
+                customerName: detected,
+              });
+            }
           } else if (fnName === "show_qris_payment") {
-            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            const detected = cleanCustomerNameArg(fnArgs.customerName) || cleanCustomerNameArg(extractedName);
             actions.push({
               type: "SHOW_QRIS",
               customerName: detected || undefined,
               paymentMethod: "QRIS",
             });
           } else if (fnName === "request_debit_payment") {
-            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            const detected = cleanCustomerNameArg(fnArgs.customerName) || cleanCustomerNameArg(extractedName);
             actions.push({
               type: "REQUEST_DEBIT_PAYMENT",
               customerName: detected || undefined,
@@ -1513,7 +1839,7 @@ ${groupedCatalogText}
               notes: fnArgs.notes,
             });
           } else if (fnName === "confirm_order_paid") {
-            const detected = fnArgs.customerName ? capitalizeName(fnArgs.customerName) : extractedName;
+            const detected = cleanCustomerNameArg(fnArgs.customerName) || cleanCustomerNameArg(extractedName);
             actions.push({
               type: "CONFIRM_ORDER_PAID",
               customerName: detected || undefined,
@@ -1528,9 +1854,54 @@ ${groupedCatalogText}
       }
 
       const lowerMsg = userMessage.toLowerCase();
+      const customExtraction = detectCustomizationIntent(userMessage);
 
-      // Fallback intent: if model didn't call add_to_cart, but user clearly mentioned a menu item to order
-      if (!actions.some((a) => a.type === "ADD_ITEM" || a.type === "REMOVE_ITEM")) {
+      // Check if user is customizing or removing an existing item in the cart
+      let cartItemToModify: CartItemContext | undefined = undefined;
+      if (context.currentCartItems && context.currentCartItems.length > 0) {
+        const matchedMenu = matchMenuItem(lowerMsg, menuItems);
+        if (matchedMenu) {
+          cartItemToModify = context.currentCartItems.find((ci) => ci.menuItemId === matchedMenu.id);
+        }
+        if (!cartItemToModify) {
+          for (const ci of context.currentCartItems) {
+            const m = menuItems.find((mi) => mi.id === ci.menuItemId);
+            if (m && (lowerMsg.includes(m.name.toLowerCase()) || lowerMsg.includes(m.slug.toLowerCase()))) {
+              cartItemToModify = ci;
+              break;
+            }
+          }
+        }
+        if (!cartItemToModify && context.currentCartItems.length === 1 && customExtraction.isCustomization) {
+          cartItemToModify = context.currentCartItems[0];
+        }
+      }
+
+      if (customExtraction.isRemove && cartItemToModify) {
+        // Customer wants to cancel/remove this item
+        actions.length = 0;
+        const targetMenu = menuItems.find((m) => m.id === cartItemToModify!.menuItemId);
+        actions.push({
+          type: "REMOVE_ITEM",
+          menuItemId: cartItemToModify.menuItemId,
+          menuName: targetMenu?.name || "Menu",
+        });
+      } else if (customExtraction.isCustomization && cartItemToModify) {
+        // Customer is customizing / adjusting notes or quantity of an existing cart item!
+        // WIPE any accidental ADD_ITEM action generated by LLM
+        actions.length = 0;
+        const targetMenu = menuItems.find((m) => m.id === cartItemToModify!.menuItemId);
+        const finalQty = customExtraction.quantity !== undefined ? customExtraction.quantity : cartItemToModify.quantity;
+        actions.push({
+          type: "CUSTOMIZE_ITEM",
+          menuItemId: cartItemToModify.menuItemId,
+          menuName: targetMenu?.name || "Menu",
+          quantity: finalQty,
+          notes: customExtraction.notes,
+          customizations: customExtraction.notes ? { notes: customExtraction.notes } : undefined,
+        });
+      } else if (!actions.some((a) => a.type === "ADD_ITEM" || a.type === "REMOVE_ITEM" || a.type === "CUSTOMIZE_ITEM")) {
+        // Only run ADD_ITEM fallback if this was NOT a customization of an existing item
         const isCheckoutWord =
           lowerMsg.includes("itu aja") ||
           lowerMsg.includes("cukup") ||
@@ -1573,6 +1944,8 @@ ${groupedCatalogText}
               menuItemId: detectedMenu.id,
               menuName: detectedMenu.name,
               quantity: qty,
+              notes: customExtraction.notes,
+              customizations: customExtraction.notes ? { notes: customExtraction.notes } : undefined,
             });
           }
         }
@@ -1602,11 +1975,12 @@ ${groupedCatalogText}
         lowerMsg.includes("barcode") ||
         lowerMsg.includes("scan");
 
-      const effectiveCustomerName =
+      const rawCustomerName =
         actions.find((a) => a.customerName)?.customerName ||
         extractedName ||
         context.customerName ||
         null;
+      const effectiveCustomerName = cleanCustomerNameArg(rawCustomerName);
 
       if (isPaidIntent) {
         actions.length = 0;
@@ -1727,8 +2101,34 @@ ${groupedCatalogText}
           lastAiMsg.content.toLowerCase().includes("dengan kakak siapa") ||
           lastAiMsg.content.toLowerCase().includes("pesanan ini atas nama siapa"));
 
-      // If adding items, ensure the response is strictly about ordering and asks if there's any other menu:
-      if (isAddingItem) {
+      const isCustomizingItem = actions.some((a) => a.type === "CUSTOMIZE_ITEM");
+      const isRemovingItem = actions.some((a) => a.type === "REMOVE_ITEM");
+
+      if ((isAnsweringNamePrompt || extractedName) && !isQrisIntent && !isDebitIntent) {
+        // Customer is answering their name, NOT choosing payment method yet!
+        // Strip any premature payment tool calls
+        for (let i = actions.length - 1; i >= 0; i--) {
+          if (actions[i].type === "SHOW_QRIS" || actions[i].type === "REQUEST_DEBIT_PAYMENT") {
+            actions.splice(i, 1);
+          }
+        }
+        if (effectiveCustomerName && !actions.some((a) => a.type === "SET_CUSTOMER_NAME")) {
+          actions.push({
+            type: "SET_CUSTOMER_NAME",
+            customerName: effectiveCustomerName,
+          });
+        }
+      }
+
+      // If customizing or removing or adding items:
+      if (isCustomizingItem) {
+        const custAct = actions.find((a) => a.type === "CUSTOMIZE_ITEM");
+        const noteText = custAct?.notes ? ` (${custAct.notes})` : "";
+        finalReply = `Baik kak, pesanan **${custAct?.quantity || 1}x ${custAct?.menuName}**${noteText} untuk Meja ${tableNum} sudah saya sesuaikan 😊. Ada menu lain yang ingin ditambah kak, atau sudah cukup ini saja?`;
+      } else if (isRemovingItem) {
+        const remAct = actions.find((a) => a.type === "REMOVE_ITEM");
+        finalReply = `Baik kak, menu **${remAct?.menuName}** sudah dihapus dari pesanan Meja ${tableNum} 😊. Ada menu lain yang ingin dipesan kak?`;
+      } else if (isAddingItem) {
         const addedItems = actions
           .filter((a) => a.type === "ADD_ITEM")
           .map((a) => `**${a.quantity || 1}x ${a.menuName}**`)
@@ -1742,7 +2142,7 @@ ${groupedCatalogText}
         !actions.some((a) => a.type === "SHOW_QRIS") &&
         !actions.some((a) => a.type === "REQUEST_DEBIT_PAYMENT") &&
         !actions.some((a) => a.type === "CONFIRM_ORDER_PAID") &&
-        (isProceedToPayment || isAnsweringNamePrompt)
+        (isProceedToPayment || isAnsweringNamePrompt || !!extractedName)
       ) {
         // Customer name is known, now ask QRIS or Kartu Debit without fast buttons:
         finalReply = `Terima kasih Kak ${effectiveCustomerName}! Untuk pembayarannya, kakak ingin bayar via QRIS (scan barcode langsung di layar) atau Kartu Debit (staf kami bawakan mesin EDC ke meja)?`;

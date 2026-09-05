@@ -888,7 +888,13 @@ export async function POST(
         })
         .join("\n");
 
-      finalReplyContent = `Baik kak, pesanan untuk Meja ${tableNumber || "A1"} sudah dicatat:\n\n${fullItemsList}\n\nTotal: **Rp ${(updatedCart.total || 0).toLocaleString("id-ID")}** (sudah termasuk PB1 10%)\n\nAda menu lain yang ingin ditambah kak, atau sudah cukup ini saja? 😊`;
+      const actionVerb = aiResult.actions.some((a) => a.type === "CUSTOMIZE_ITEM")
+        ? "sudah disesuaikan"
+        : aiResult.actions.some((a) => a.type === "REMOVE_ITEM")
+        ? "sudah diperbarui"
+        : "sudah dicatat";
+
+      finalReplyContent = `Baik kak, pesanan untuk Meja ${tableNumber || "A1"} ${actionVerb}:\n\n${fullItemsList}\n\nTotal: **Rp ${(updatedCart.total || 0).toLocaleString("id-ID")}** (sudah termasuk PB1 10%)\n\nAda menu lain yang ingin ditambah kak, atau sudah cukup ini saja? 😊`;
     }
 
     if (extraMetadata.orderConfirmed) {
