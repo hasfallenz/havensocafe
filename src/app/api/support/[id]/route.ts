@@ -49,25 +49,39 @@ export async function PATCH(
         },
       });
 
-      // Pause AI for associated conversation
+      // Pause AI for associated conversation safely
       if (ticket.conversationId) {
-        await prisma.conversation.update({
-          where: { id: ticket.conversationId },
-          data: { aiStatus: "PAUSED" },
-        });
+        try {
+          const conv = await prisma.conversation.findUnique({
+            where: { id: ticket.conversationId },
+          });
+          if (conv) {
+            await prisma.conversation.update({
+              where: { id: ticket.conversationId },
+              data: { aiStatus: "PAUSED" },
+            });
 
-        const staffMsg =
-          ticket.type === "DEBIT_PAYMENT"
-            ? `Halo kak! Staf kami (${assignedUserName}) sedang menuju ke Meja ${ticket.tableNumber || "A1"} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Silakan siapkan kartu debit Anda ya! 💳`
-            : `Halo kak! Staff kami sedang segera menuju ke meja Anda untuk membantu.`;
+            const staffMsg =
+              ticket.type === "DEBIT_PAYMENT"
+                ? `Halo kak! Staf kami (${assignedUserName}) sudah membaca panggilan dan sedang OTW menuju Meja ${ticket.tableNumber || "A1"} membawakan mesin EDC untuk proses pembayaran kartu debit kakak. Silakan siapkan kartu debit Anda ya! 💳`
+                : `Halo kak! Staff kami (${assignedUserName || "Staff"}) sudah membaca panggilan dan sedang OTW menuju Meja ${ticket.tableNumber || "A1"} untuk membantu langsung. Mohon tunggu sebentar ya! 🏃‍♂️💨`;
 
-        await prisma.message.create({
-          data: {
-            conversationId: ticket.conversationId,
-            senderType: "STAFF",
-            content: staffMsg,
-          },
-        });
+            const createdStaffMsg = await prisma.message.create({
+              data: {
+                conversationId: ticket.conversationId,
+                senderType: "STAFF",
+                content: staffMsg,
+              },
+            });
+
+            eventBus.broadcast("NEW_MESSAGE", {
+              conversationId: ticket.conversationId,
+              message: createdStaffMsg,
+            });
+          }
+        } catch (convErr) {
+          console.warn("Could not update conversation on TAKE_REQUEST:", convErr);
+        }
       }
 
       eventBus.broadcast("SUPPORT_TICKET_UPDATED", {
@@ -79,27 +93,36 @@ export async function PATCH(
         conversationId: ticket.conversationId,
       });
     } else if (action === "RETURN_TO_AI") {
-      // Resume AI for associated conversation
+      // Resume AI for associated conversation safely
       if (ticket.conversationId) {
-        await prisma.conversation.update({
-          where: { id: ticket.conversationId },
-          data: { aiStatus: "ACTIVE" },
-        });
+        try {
+          const conv = await prisma.conversation.findUnique({
+            where: { id: ticket.conversationId },
+          });
+          if (conv) {
+            await prisma.conversation.update({
+              where: { id: ticket.conversationId },
+              data: { aiStatus: "ACTIVE" },
+            });
 
-        await prisma.message.create({
-          data: {
-            conversationId: ticket.conversationId,
-            senderType: "SYSTEM",
-            content: `Percakapan telah dikembalikan ke Smart Waiter AI. Silakan lanjutkan pesan ya kak!`,
-          },
-        });
+            await prisma.message.create({
+              data: {
+                conversationId: ticket.conversationId,
+                senderType: "SYSTEM",
+                content: `Percakapan telah dikembalikan ke Smart Waiter AI. Silakan lanjutkan pesan ya kak!`,
+              },
+            });
+          }
+        } catch (convErr) {
+          console.warn("Could not update conversation on RETURN_TO_AI:", convErr);
+        }
       }
 
       eventBus.broadcast("RETURN_TO_AI", {
         ticket: updatedTicket,
         conversationId: ticket.conversationId,
       });
-    } else if (action === "CONFIRM_DEBIT" || (action === "RESOLVE" && ticket.type === "DEBIT_PAYMENT") || status === "RESOLVED") {
+    } else if (action === "CONFIRM_DEBIT" || action === "RESOLVE" || status === "RESOLVED") {
       // Handle EDC debit payment completion if this is a DEBIT_PAYMENT ticket
       if (ticket.type === "DEBIT_PAYMENT") {
         let order = null;
@@ -194,21 +217,34 @@ export async function PATCH(
         },
       });
 
-      // Also ensure AI is reactivated
+      // Also ensure AI is reactivated safely
       if (ticket.conversationId) {
-        await prisma.conversation.update({
-          where: { id: ticket.conversationId },
-          data: { aiStatus: "ACTIVE" },
-        });
-
-        if (ticket.type !== "DEBIT_PAYMENT") {
-          await prisma.message.create({
-            data: {
-              conversationId: ticket.conversationId,
-              senderType: "SYSTEM",
-              content: `Bantuan staff telah selesai. Terima kasih!`,
-            },
+        try {
+          const conv = await prisma.conversation.findUnique({
+            where: { id: ticket.conversationId },
           });
+          if (conv) {
+            await prisma.conversation.update({
+              where: { id: ticket.conversationId },
+              data: { aiStatus: "ACTIVE" },
+            });
+
+            if (ticket.type !== "DEBIT_PAYMENT") {
+              const resolveMsg = await prisma.message.create({
+                data: {
+                  conversationId: ticket.conversationId,
+                  senderType: "SYSTEM",
+                  content: `✅ Bantuan staf (${assignedUserName || ticket.assignedUserName || "Staff"}) telah selesai dilayani di Meja ${ticket.tableNumber || "A1"}. Terima kasih! Silakan lanjutkan menikmati waktu Anda di Havenso Cafe. ☕`,
+                },
+              });
+              eventBus.broadcast("NEW_MESSAGE", {
+                conversationId: ticket.conversationId,
+                message: resolveMsg,
+              });
+            }
+          }
+        } catch (convErr) {
+          console.warn("Could not reactivate conversation on RESOLVE:", convErr);
         }
       }
 

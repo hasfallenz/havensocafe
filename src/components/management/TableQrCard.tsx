@@ -15,10 +15,17 @@ export const TableQrCard: React.FC<TableQrCardProps> = ({
   table,
   onUpdateStatus,
 }) => {
-  const customerUrl = `/customer?table=${table.tableNumber}`;
+  const customerPath = `/customer?table=${table.tableNumber}`;
+  const [fullUrl, setFullUrl] = React.useState(customerPath);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      setFullUrl(`${window.location.origin}${customerPath}`);
+    }
+  }, [customerPath]);
 
   const handlePrint = () => {
-    window.open(customerUrl, "_blank");
+    window.open(fullUrl, "_blank");
   };
 
   return (
@@ -58,17 +65,17 @@ export const TableQrCard: React.FC<TableQrCardProps> = ({
       {/* QR Code Container */}
       <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-zinc-50 border border-zinc-100 gap-2">
         <div className="p-2.5 bg-white rounded-xl shadow-xs border border-zinc-200/80">
-          <QRCodeSVG value={customerUrl} size={120} level="M" />
+          <QRCodeSVG value={fullUrl} size={120} level="M" />
         </div>
-        <span className="text-[11px] font-mono text-zinc-500">
-          havenso.cafe{customerUrl}
+        <span className="text-[11px] font-mono text-zinc-500 max-w-[200px] truncate text-center" title={fullUrl}>
+          {fullUrl.replace(/^https?:\/\//, "")}
         </span>
       </div>
 
       {/* Footer Actions */}
       <div className="flex items-center gap-2 pt-2 border-t border-zinc-100">
         <Link
-          href={customerUrl}
+          href={fullUrl}
           target="_blank"
           className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold border border-sky-200 transition-colors"
         >

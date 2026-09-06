@@ -47,3 +47,7 @@ yarn-error.log*
 
 # IDE AI agent workspace customization (not needed on VPS)
 .agents/
+
+# Binaries & Cloudflare Tunnel
+.bin/
+*.exe

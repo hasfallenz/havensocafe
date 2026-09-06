@@ -182,17 +182,39 @@ export interface InventoryItemData {
   updatedAt: string;
 }
 
+export interface StaffStockReportLog {
+  id: string;
+  userName: string | null;
+  action: string;
+  details: string | null;
+  createdAt: string;
+}
+
+export interface StaffStockReportPayload {
+  itemId: string;
+  actualStock: number;
+  staffName?: string;
+  reportType?: "STOCK_OPNAME" | "SISA_SHIFT" | "BAHAN_RUSAK" | "RESTOCK_REQUEST";
+  notes?: string;
+}
+
 export interface RealtimeEvent {
   type:
     | "ORDER_CREATED"
     | "ORDER_STATUS_CHANGED"
     | "PAYMENT_COMPLETED"
+    | "PAYMENT_CONFIRMED"
     | "KITCHEN_UPDATED"
     | "SUPPORT_TICKET_CREATED"
     | "SUPPORT_TICKET_UPDATED"
+    | "SUPPORT_TICKET_RESOLVED"
     | "NEW_MESSAGE"
     | "STAFF_TAKEOVER"
-    | "RETURN_TO_AI";
+    | "RETURN_TO_AI"
+    | "INVENTORY_CHANGED"
+    | "STOCK_REPORT_SUBMITTED"
+    | "MENU_UPDATED";
   data: any;
   timestamp: string;
 }
+

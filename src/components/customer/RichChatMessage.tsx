@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, QrCode, Loader2, Sparkles, CreditCard, ChevronRight } from "lucide-react";
+import { CheckCircle2, QrCode, Loader2, CreditCard, ChevronRight, UtensilsCrossed, Leaf, Coffee, CupSoda } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface RichChatMessageProps {
@@ -298,13 +298,7 @@ function renderCleanFormattedText(content: string) {
 
           if (isHeader) {
             const cleanHeader = line.replace(/^#{1,3}\s*/, "");
-            return (
-              <div key={lIdx} className="pt-1.5 pb-0.5">
-                <h4 className="font-extrabold text-zinc-950 text-[13px] tracking-tight">
-                  {parseInlineStyles(cleanHeader)}
-                </h4>
-              </div>
-            );
+            return renderHeaderWithIcon(cleanHeader, lIdx);
           }
 
           return (
@@ -316,6 +310,37 @@ function renderCleanFormattedText(content: string) {
       </div>
     );
   });
+}
+
+/**
+ * Renders header with Lucide SVG icons instead of broken Unicode emojis that cause '?' on Android
+ */
+function renderHeaderWithIcon(headerText: string, key: React.Key) {
+  // Strip raw emojis and replacement chars that glitch as '?' on Android
+  const cleanTitle = headerText
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE00-\uFE0F\uFFFD]/gu, "")
+    .trim();
+  const lower = headerText.toLowerCase();
+
+  let iconNode = null;
+  if (lower.includes("food") || lower.includes("makan")) {
+    iconNode = <UtensilsCrossed className="w-3.5 h-3.5 text-rose-600 shrink-0" />;
+  } else if (lower.includes("tea") || lower.includes("teh")) {
+    iconNode = <Leaf className="w-3.5 h-3.5 text-emerald-600 shrink-0" />;
+  } else if (lower.includes("coffee") || lower.includes("kopi")) {
+    iconNode = <Coffee className="w-3.5 h-3.5 text-amber-700 shrink-0" />;
+  } else if (lower.includes("non-coffee") || lower.includes("drink") || lower.includes("minum")) {
+    iconNode = <CupSoda className="w-3.5 h-3.5 text-sky-600 shrink-0" />;
+  }
+
+  return (
+    <div key={key} className="pt-2 pb-0.5 flex items-center gap-1.5">
+      {iconNode}
+      <h4 className="font-extrabold text-zinc-950 text-[13px] tracking-tight">
+        {parseInlineStyles(cleanTitle)}
+      </h4>
+    </div>
+  );
 }
 
 /**
@@ -425,8 +450,8 @@ function parseInlineStyles(text: string): React.ReactNode[] {
       );
     }
 
-    // Remove any leftover stray asterisks so no raw '*' symbols show in UI
-    const sanitized = part.replace(/\*/g, "");
+    // Remove any leftover stray asterisks and unicode replacement chars so no raw '*' or '?' symbols show in UI
+    const sanitized = part.replace(/[*\uFFFD]/g, "");
     return <React.Fragment key={idx}>{sanitized}</React.Fragment>;
   });
 }

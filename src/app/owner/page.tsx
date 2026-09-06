@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { OrderData, InventoryItemData } from "@/types";
 import { formatCurrency, formatDate, formatTimeAgo } from "@/lib/utils";
@@ -19,7 +20,7 @@ import {
   Activity,
   ShieldCheck,
 } from "lucide-react";
-import { OwnerAICommandBar } from "@/components/owner/OwnerAICommandBar";
+import { OwnerAIDrawer } from "@/components/owner/OwnerAIDrawer";
 
 const defaultData = {
   stats: {
@@ -49,6 +50,8 @@ export default function DedicatedOwnerPage() {
     recentLogs: any[];
   }>(defaultData);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false);
+  const [initialDrawerPrompt, setInitialDrawerPrompt] = useState("");
 
   const loadData = async () => {
     try {
@@ -137,11 +140,6 @@ export default function DedicatedOwnerPage() {
       {/* Main Glass Content Container */}
       <main className="p-6 md:p-8 max-w-7xl w-full mx-auto flex-1 flex flex-col gap-8 relative z-10">
         
-        {/* Google/Gemini-Style Executive AI Voice & Text Command Bar */}
-        <section className="w-full">
-          <OwnerAICommandBar />
-        </section>
-
         {/* KPI Financial & Operations Overview — 3-Column Ultra Clean Glass Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-5">
           
@@ -403,6 +401,34 @@ export default function DedicatedOwnerPage() {
         </div>
 
       </main>
+
+      {/* Floating Hermes AI Logo Action Button (Bottom Right) - Pure Logo */}
+      <button
+        type="button"
+        onClick={() => {
+          setInitialDrawerPrompt("");
+          setIsAIDrawerOpen(true);
+        }}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 p-0.5 shadow-[0_8px_30px_rgba(251,191,36,0.35)] hover:shadow-[0_12px_45px_rgba(251,191,36,0.55)] hover:scale-110 active:scale-95 transition-all cursor-pointer group flex items-center justify-center"
+        title="Buka Hermes AI Owner Assistant"
+      >
+        <div className="w-full h-full rounded-[14px] bg-[#0c1017] overflow-hidden flex items-center justify-center p-1">
+          <Image
+            src="/logoagent.png"
+            alt="Hermes AI"
+            width={48}
+            height={48}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+          />
+        </div>
+      </button>
+
+      {/* Hermes AI Owner Assistant Right Sidebar Drawer */}
+      <OwnerAIDrawer
+        isOpen={isAIDrawerOpen}
+        onClose={() => setIsAIDrawerOpen(false)}
+        initialPrompt={initialDrawerPrompt}
+      />
     </div>
   );
 }

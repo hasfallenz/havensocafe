@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
-import { MessageData, CartData, OrderData } from "@/types";
+import { MessageData, CartData, OrderData, SupportTicketData } from "@/types";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
-import { X, Send, User, Sparkles, CreditCard, ShoppingBag, Camera } from "lucide-react";
+import { X, Send, User, CreditCard, ShoppingBag, Camera, CheckCircle2 } from "lucide-react";
 import { RichChatMessage } from "./RichChatMessage";
 
 interface AIConversationDrawerProps {
@@ -20,6 +20,7 @@ interface AIConversationDrawerProps {
   isCheckingOut?: boolean;
   activeOrder?: OrderData | null;
   onOpenOrderStatus?: () => void;
+  activeSupportTicket?: SupportTicketData | null;
 }
 
 export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
@@ -35,6 +36,7 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
   isCheckingOut = false,
   activeOrder,
   onOpenOrderStatus,
+  activeSupportTicket,
 }) => {
   const [input, setInput] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -147,6 +149,52 @@ export const AIConversationDrawer: React.FC<AIConversationDrawerProps> = ({
             </div>
             <span className="text-[10.5px] font-mono font-black text-zinc-600 bg-white/80 px-2 py-0.5 rounded-md border border-zinc-200">
               {activeOrder.orderNumber}
+            </span>
+          </div>
+        )}
+
+        {/* Live Staff Assistance Status Tracker inside AI Drawer */}
+        {activeSupportTicket && activeSupportTicket.status !== "RESOLVED" && (
+          <div
+            className={cn(
+              "px-4 py-2.5 border-b flex items-center justify-between text-xs font-bold transition-all shadow-2xs",
+              activeSupportTicket.status === "IN_PROGRESS"
+                ? "bg-emerald-600 border-emerald-700 text-white animate-pulse"
+                : "bg-amber-500 border-amber-600 text-zinc-950"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {activeSupportTicket.status === "IN_PROGRESS" ? (
+                <>
+                  <span className="text-base leading-none">🏃‍♂️</span>
+                  <div>
+                    <span className="font-black text-[11px] block uppercase leading-tight">
+                      Staf Sedang OTW ke Meja {tableNumber}!
+                    </span>
+                    <span className="text-[10px] text-emerald-100 font-normal">
+                      {activeSupportTicket.assignedUserName || "Staff"} sudah membaca & menuju ke meja Anda.
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-zinc-950"></span>
+                  </span>
+                  <div>
+                    <span className="font-black text-[11px] block uppercase leading-tight">
+                      Panggilan Bantuan Terkirim
+                    </span>
+                    <span className="text-[10px] text-amber-950 font-normal">
+                      Menunggu staf membaca & merespons...
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/90 text-zinc-900 border border-zinc-200 shrink-0">
+              {activeSupportTicket.status === "IN_PROGRESS" ? "OTW" : "WAITING"}
             </span>
           </div>
         )}

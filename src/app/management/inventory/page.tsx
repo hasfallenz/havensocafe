@@ -1,127 +1,111 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { InventoryItemData } from "@/types";
-import { Modal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
+import Link from "next/link";
+import Image from "next/image";
+import { InventoryItemData, RealtimeEvent } from "@/types";
 import {
-  Plus,
   Search,
-  Edit2,
-  Trash2,
   Boxes,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
+  Coffee,
+  UtensilsCrossed,
+  Sparkles,
+  Bot,
+  ExternalLink,
+  RefreshCw,
+  MessageSquarePlus,
+  ArrowRight,
 } from "lucide-react";
+import { OwnerAIDrawer } from "@/components/owner/OwnerAIDrawer";
+
+function getCategory(name: string): "MINUMAN" | "MAKANAN" {
+  const n = name.toLowerCase();
+  if (
+    n.includes("kopi") ||
+    n.includes("espresso") ||
+    n.includes("susu") ||
+    n.includes("milk") ||
+    n.includes("sirup") ||
+    n.includes("syrup") ||
+    n.includes("butterscotch") ||
+    n.includes("hazelnut") ||
+    n.includes("karamel") ||
+    n.includes("caramel") ||
+    n.includes("vanilla") ||
+    n.includes("matcha") ||
+    n.includes("teh") ||
+    n.includes("tea") ||
+    n.includes("leci") ||
+    n.includes("lemon") ||
+    n.includes("cokelat") ||
+    n.includes("chocolate") ||
+    n.includes("choco") ||
+    n.includes("red velvet") ||
+    n.includes("taro") ||
+    n.includes("avocado") ||
+    n.includes("almond") ||
+    n.includes("gula cair") ||
+    n.includes("simple syrup")
+  ) {
+    return "MINUMAN";
+  }
+  return "MAKANAN";
+}
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItemData[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "AVAILABLE" | "LOW_STOCK" | "OUT_OF_STOCK">("ALL");
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItemData | null>(null);
-  const [name, setName] = useState("");
-  const [stock, setStock] = useState("");
-  const [unit, setUnit] = useState("kg");
-  const [isSaving, setIsSaving] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "MINUMAN" | "MAKANAN">("ALL");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false);
+  const [initialDrawerPrompt, setInitialDrawerPrompt] = useState("");
 
   const loadInventory = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch("/api/admin/inventory");
       const json = await res.json();
       if (json.success) setItems(json.data);
     } catch (e) {
       console.error("Failed to load inventory:", e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadInventory();
+
+    // Listen to live inventory events from Staff & AI
+    const eventSource = new EventSource("/api/realtime");
+    eventSource.onmessage = (event) => {
+      try {
+        const parsed: RealtimeEvent = JSON.parse(event.data);
+        if (
+          parsed.type === "INVENTORY_CHANGED" ||
+          parsed.type === "STOCK_REPORT_SUBMITTED"
+        ) {
+          loadInventory();
+        }
+      } catch (e) {}
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
-  // Open Add / Edit Modal
-  const handleOpenAdd = () => {
-    setEditingItem(null);
-    setName("");
-    setStock("10");
-    setUnit("kg");
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (item: InventoryItemData) => {
-    setEditingItem(item);
-    setName(item.name);
-    setStock(item.stock.toString());
-    setUnit(item.unit);
-    setIsModalOpen(true);
-  };
-
-  // Delete Item
-  const handleDeleteItem = async (id: string) => {
-    if (!confirm("Hapus bahan baku ini dari inventori?")) return;
-    try {
-      const res = await fetch(`/api/admin/inventory?id=${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.success) {
-        setItems((prev) => prev.filter((i) => i.id !== id));
-      }
-    } catch (e) {
-      console.error("Delete inventory item error:", e);
-    }
-  };
-
-  // Submit Add / Edit Form
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    setIsSaving(true);
-    const stockNum = Math.max(0, Number(stock) || 0);
-
-    try {
-      if (editingItem) {
-        const res = await fetch("/api/admin/inventory", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: editingItem.id,
-            name: name.trim(),
-            stock: stockNum,
-            unit: unit.trim() || "pcs",
-          }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          setItems((prev) => prev.map((i) => (i.id === editingItem.id ? json.data : i)));
-          setIsModalOpen(false);
-        }
-      } else {
-        const res = await fetch("/api/admin/inventory", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            stock: stockNum,
-            unit: unit.trim() || "pcs",
-          }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          setItems((prev) => [...prev, json.data]);
-          setIsModalOpen(false);
-        }
-      }
-    } catch (e) {
-      console.error("Save inventory item error:", e);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   // Filter items
+  const drinkCount = useMemo(
+    () => items.filter((i) => getCategory(i.name) === "MINUMAN").length,
+    [items]
+  );
+  const foodCount = useMemo(
+    () => items.filter((i) => getCategory(i.name) === "MAKANAN").length,
+    [items]
+  );
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -130,10 +114,12 @@ export default function InventoryPage() {
         (statusFilter === "AVAILABLE" && item.stock > 5) ||
         (statusFilter === "LOW_STOCK" && item.stock > 0 && item.stock <= 5) ||
         (statusFilter === "OUT_OF_STOCK" && item.stock <= 0);
+      const matchesCategory =
+        categoryFilter === "ALL" || getCategory(item.name) === categoryFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [items, search, statusFilter]);
+  }, [items, search, statusFilter, categoryFilter]);
 
   // Summary counts
   const availableCount = items.filter((i) => i.stock > 5).length;
@@ -150,20 +136,124 @@ export default function InventoryPage() {
             <span>Stok Inventori (Bahan Baku)</span>
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Kelola stok bahan makanan dan racikan minuman Havenso Cafe
+            Monitoring ketersediaan bahan makanan dan racikan minuman Havenso Cafe
           </p>
         </div>
 
-        <Button
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={loadInventory}
+            disabled={isLoading}
+            className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors cursor-pointer border border-zinc-200"
+            title="Refresh data stok"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setInitialDrawerPrompt("");
+              setIsAIDrawerOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-zinc-950 font-black text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+          >
+            <Bot className="w-4 h-4 text-zinc-950" />
+            <span>Instruksi Hermes AI</span>
+          </button>
+        </div>
+      </div>
+
+      {/* AI Centralized Management Info Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5 shadow-md border border-zinc-800">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-400 text-zinc-950 font-black shrink-0 mt-0.5 sm:mt-0 shadow-xs">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                Mode Monitoring Owner Terpusat
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-[10px] font-bold text-zinc-300 border border-zinc-700">
+                Read-Only
+              </span>
+            </div>
+            <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">
+              Penambahan, pengeditan stok, dan penghapusan bahan baku dikelola langsung melalui percakapan dengan{" "}
+              <strong className="text-amber-300">Hermes AI di Room Chat Owner</strong>. Untuk pencatatan fisik operasional harian oleh staf dapur/barista, gunakan{" "}
+              <strong className="text-zinc-100">Panel Staff</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800">
+          <button
+            type="button"
+            onClick={() => {
+              setInitialDrawerPrompt("");
+              setIsAIDrawerOpen(true);
+            }}
+            className="flex-1 sm:flex-none text-center px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-black transition-all shadow-xs cursor-pointer"
+          >
+            Buka Chat Hermes AI
+          </button>
+          <Link
+            href="/staff"
+            className="flex-1 sm:flex-none text-center px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-all cursor-pointer flex items-center justify-center gap-1"
+          >
+            <span>Panel Staff</span>
+            <ExternalLink className="w-3 h-3 text-zinc-400" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Quick Agent Actions / Command Chips */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white rounded-2xl border border-zinc-200 shadow-2xs">
+        <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1 shrink-0">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          Perintah Cepat ke Kolom Agent:
+        </span>
+        <button
           type="button"
-          variant="primary"
-          size="md"
-          onClick={handleOpenAdd}
-          className="gap-1.5 self-start sm:self-auto"
+          onClick={() => {
+            setInitialDrawerPrompt("tambah bahan baku baru ");
+            setIsAIDrawerOpen(true);
+          }}
+          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-amber-100 hover:text-amber-950 text-zinc-700 border border-zinc-200 transition-colors cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          <span>Tambah Bahan Baku</span>
-        </Button>
+          + Tambah Bahan Baru
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInitialDrawerPrompt("ubah stok ");
+            setIsAIDrawerOpen(true);
+          }}
+          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-amber-100 hover:text-amber-950 text-zinc-700 border border-zinc-200 transition-colors cursor-pointer"
+        >
+          ✏️ Ubah / Koreksi Stok
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInitialDrawerPrompt("hapus bahan baku ");
+            setIsAIDrawerOpen(true);
+          }}
+          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-rose-100 hover:text-rose-950 text-zinc-700 border border-zinc-200 transition-colors cursor-pointer"
+        >
+          🗑️ Hapus Bahan
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInitialDrawerPrompt("bahan baku apa saja yang stoknya kritis atau habis?");
+            setIsAIDrawerOpen(true);
+          }}
+          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-amber-100 hover:text-amber-950 text-zinc-700 border border-zinc-200 transition-colors cursor-pointer"
+        >
+          🔍 Cek Bahan Menipis
+        </button>
       </div>
 
       {/* Stats Summary Tabs */}
@@ -221,29 +311,73 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      {/* Search Input Bar */}
-      <div className="relative w-full sm:w-80">
-        <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari nama bahan baku..."
-          className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-zinc-200 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
-        />
+      {/* Category Tabs & Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("ALL")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              categoryFilter === "ALL"
+                ? "bg-zinc-900 text-white shadow-xs"
+                : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50"
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5" />
+            <span>Semua ({items.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("MINUMAN")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              categoryFilter === "MINUMAN"
+                ? "bg-amber-600 text-white shadow-xs"
+                : "bg-white text-zinc-600 border border-zinc-200 hover:bg-amber-50/50"
+            }`}
+          >
+            <Coffee className="w-3.5 h-3.5" />
+            <span>Minuman & Bar ({drinkCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCategoryFilter("MAKANAN")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              categoryFilter === "MAKANAN"
+                ? "bg-orange-600 text-white shadow-xs"
+                : "bg-white text-zinc-600 border border-zinc-200 hover:bg-orange-50/50"
+            }`}
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            <span>Makanan & Dapur ({foodCount})</span>
+          </button>
+        </div>
+
+        {/* Search Input Bar */}
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama bahan baku..."
+            className="w-full pl-10 pr-4 py-1.5 rounded-xl bg-white border border-zinc-200 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
+          />
+        </div>
       </div>
 
-      {/* Clean Inventory Table */}
+      {/* Clean Inventory Table (Read-Only for Owner Monitoring) */}
       <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3.5 px-4">Nama Bahan</th>
+                <th className="py-3.5 px-4">Kategori</th>
                 <th className="py-3.5 px-4">Stok</th>
                 <th className="py-3.5 px-4">Satuan</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -257,7 +391,7 @@ export default function InventoryPage() {
                 filteredItems.map((item) => {
                   const isAvailable = item.stock > 5;
                   const isLow = item.stock > 0 && item.stock <= 5;
-                  const isOut = item.stock <= 0;
+                  const isDrink = getCategory(item.name) === "MINUMAN";
 
                   return (
                     <tr key={item.id} className="hover:bg-zinc-50/80 transition-colors">
@@ -266,17 +400,35 @@ export default function InventoryPage() {
                         {item.name}
                       </td>
 
-                      {/* 2. Stok */}
+                      {/* 2. Kategori */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isDrink
+                              ? "bg-amber-50 text-amber-800 border-amber-200"
+                              : "bg-orange-50 text-orange-800 border-orange-200"
+                          }`}
+                        >
+                          {isDrink ? (
+                            <Coffee className="w-3 h-3 text-amber-600" />
+                          ) : (
+                            <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                          )}
+                          <span>{isDrink ? "Minuman & Bar" : "Makanan & Dapur"}</span>
+                        </span>
+                      </td>
+
+                      {/* 3. Stok */}
                       <td className="py-3.5 px-4 font-mono font-black text-sm text-zinc-900">
                         {item.stock}
                       </td>
 
-                      {/* 3. Satuan */}
+                      {/* 4. Satuan */}
                       <td className="py-3.5 px-4 font-semibold text-zinc-600">
                         {item.unit}
                       </td>
 
-                      {/* 4. Status */}
+                      {/* 5. Status */}
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border shadow-2xs ${
@@ -301,28 +453,6 @@ export default function InventoryPage() {
                           </span>
                         </span>
                       </td>
-
-                      {/* 5. Aksi */}
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Bahan"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Bahan"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
                     </tr>
                   );
                 })
@@ -332,82 +462,36 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingItem ? "Edit Bahan Baku" : "Tambah Bahan Baku"}
-        description="Kelola nama, stok jumlah, dan satuan bahan"
-        maxWidth="sm"
+      {/* Floating Hermes AI Action Button (Bottom Right) */}
+      <button
+        type="button"
+        onClick={() => {
+          setInitialDrawerPrompt("");
+          setIsAIDrawerOpen(true);
+        }}
+        className="fixed bottom-6 right-6 z-40 w-13 h-13 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 p-0.5 shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer group flex items-center justify-center"
+        title="Buka Kolom Agent Hermes AI"
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
-          <div>
-            <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
-              Nama Bahan *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Minyak Goreng"
-              className="w-full mt-1 p-2.5 rounded-xl border border-zinc-300 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
-            />
-          </div>
+        <div className="w-full h-full rounded-[14px] bg-[#0c1017] overflow-hidden flex items-center justify-center p-1">
+          <Image
+            src="/logoagent.png"
+            alt="Hermes AI"
+            width={44}
+            height={44}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+          />
+        </div>
+      </button>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
-                Jumlah Stok *
-              </label>
-              <input
-                type="number"
-                required
-                min={0}
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                placeholder="25"
-                className="w-full mt-1 p-2.5 rounded-xl border border-zinc-300 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
-                Satuan *
-              </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-full mt-1 p-2.5 rounded-xl border border-zinc-300 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden bg-white"
-              >
-                <option value="kg">kg (Kilogram)</option>
-                <option value="liter">liter</option>
-                <option value="gram">gram</option>
-                <option value="botol">botol</option>
-                <option value="kaleng">kaleng</option>
-                <option value="butir">butir</option>
-                <option value="porsi">porsi</option>
-                <option value="pack">pack</option>
-                <option value="pcs">pcs</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-zinc-200 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Batal
-            </Button>
-            <Button type="submit" variant="primary" size="md" isLoading={isSaving}>
-              Simpan Bahan
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Embedded Hermes AI Owner Drawer */}
+      <OwnerAIDrawer
+        isOpen={isAIDrawerOpen}
+        onClose={() => {
+          setIsAIDrawerOpen(false);
+          loadInventory();
+        }}
+        initialPrompt={initialDrawerPrompt}
+      />
     </div>
   );
 }

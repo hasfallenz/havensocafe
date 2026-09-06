@@ -3,7 +3,7 @@
 import React from "react";
 import { OrderData, OrderStatus } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { X, CheckCircle2, Clock, ChefHat, Sparkles, Check, HelpCircle } from "lucide-react";
+import { X, CheckCircle2, Clock, ChefHat, Check, HelpCircle } from "lucide-react";
 
 interface OrderStatusDrawerProps {
   isOpen: boolean;

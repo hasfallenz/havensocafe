@@ -15,7 +15,6 @@ import {
 } from "@/types";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { MenuGrid } from "@/components/customer/MenuGrid";
-import { ItemDetailModal } from "@/components/customer/ItemDetailModal";
 import { AIComposer } from "@/components/customer/AIComposer";
 import { AIConversationDrawer } from "@/components/customer/AIConversationDrawer";
 import { OrderSummaryModal } from "@/components/customer/OrderSummaryModal";
@@ -23,8 +22,8 @@ import { PaymentModal } from "@/components/customer/PaymentModal";
 import { OrderStatusDrawer } from "@/components/customer/OrderStatusDrawer";
 import { SupportModal } from "@/components/customer/SupportModal";
 import { Modal } from "@/components/ui/Modal";
-import { MessageSquare, ShoppingBag, Clock, Sparkles, MapPin, Check, ChefHat, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MessageSquare, ShoppingBag, Clock, MapPin, Check, CheckCircle2, ChefHat, ArrowRight, ChevronDown, Coffee, Bot } from "lucide-react";
+import { formatCurrency, cn } from "@/lib/utils";
 
 function CustomerView() {
   const searchParams = useSearchParams();
@@ -231,9 +230,7 @@ function CustomerView() {
             (t.tableNumber === tableNumber || t.tableNumber === tableParam) &&
             t.status !== "RESOLVED"
         );
-        if (found) {
-          setActiveSupportTicket(found);
-        }
+        setActiveSupportTicket(found || null);
       }
     } catch (err) {
       console.error("Failed to load support tickets:", err);
@@ -242,6 +239,8 @@ function CustomerView() {
 
   useEffect(() => {
     loadSupportTicket();
+    const interval = setInterval(loadSupportTicket, 2500);
+    return () => clearInterval(interval);
   }, [loadSupportTicket]);
 
   // 6. Connect to Realtime Event Stream (SSE)
@@ -342,7 +341,7 @@ function CustomerView() {
       const data = await res.json();
       if (data.success) {
         setCart(data.data);
-        setIsCartOpen(true);
+        setSelectedItemForDetail(null);
       }
     } catch (err) {
       console.error("Failed to add to cart:", err);
@@ -617,74 +616,223 @@ function CustomerView() {
   const cartTotalItems =
     cart?.items.reduce((sum, i) => sum + i.quantity, 0) || 0;
 
+  const cartItemMap = React.useMemo(() => {
+    if (!cart?.items) return {};
+    return cart.items.reduce((acc, item) => {
+      acc[item.menuItemId] = (acc[item.menuItemId] || 0) + item.quantity;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [cart]);
+
   const latestActiveOrder = activeOrders.find(
     (o) => o.status === "QUEUED" || o.status === "COOKING" || o.status === "READY"
   );
 
-  return (
-    <div className="customer-canvas-bg min-h-screen text-zinc-900 flex flex-col md:flex-row relative">
+  const renderMobileExperience = () => (
+    <div className="flex-1 flex flex-col relative bg-zinc-100 min-h-0 w-full overflow-hidden">
       {/* Top Mobile Bar */}
-      <header className="md:hidden glass-panel m-4 p-4 rounded-3xl flex items-center justify-between shadow-sm sticky top-3 z-30">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/logohavenso.png"
-            alt="Havenso Cafe"
-            width={120}
-            height={32}
-            priority
-            className="h-7 w-auto object-contain"
-          />
-          <button
-            type="button"
-            onClick={() => setIsTableSwitchOpen(true)}
-            className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs"
-          >
-            Meja {tableNumber}
-          </button>
-        </div>
+      <header className="sticky top-0 z-30 bg-zinc-950 text-white shadow-md border-b border-zinc-800/80 shrink-0">
+        <div className="flex items-center justify-between px-3 py-2 w-full">
+          {/* Left: Havenso Brand & Dine-In Table Selector */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-xl border border-zinc-800">
+              <Image
+                src="/logohavenso.png"
+                alt="Havenso Cafe"
+                width={85}
+                height={22}
+                priority
+                className="h-5 w-auto object-contain brightness-0 invert"
+              />
+            </div>
 
-        <div className="flex items-center gap-2">
-          {latestActiveOrder ? (
             <button
-              onClick={() => setIsOrderStatusOpen(true)}
-              className={cn(
-                "px-3 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer",
-                latestActiveOrder.status === "COOKING"
-                  ? "bg-amber-500 text-zinc-950 border-amber-400 animate-pulse"
-                  : latestActiveOrder.status === "READY"
-                  ? "bg-emerald-500 text-zinc-950 border-emerald-400 animate-bounce"
-                  : "bg-sky-500 text-white border-sky-400"
-              )}
+              type="button"
+              onClick={() => setIsTableSwitchOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25 transition-colors cursor-pointer"
+              title="Klik untuk ganti nomor meja"
             >
-              {latestActiveOrder.status === "COOKING" ? (
-                <>
-                  <ChefHat className="w-3.5 h-3.5" />
-                  <span>Dimasak 🔥</span>
-                </>
-              ) : latestActiveOrder.status === "READY" ? (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Siap Diantar! 🚀</span>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Antrean</span>
-                </>
-              )}
+              <span className="text-[10.5px] font-black tracking-tight">
+                Dine-In • Meja {tableNumber}
+              </span>
+              <ChevronDown className="w-3 h-3 stroke-[2.5]" />
             </button>
-          ) : activeOrders.length > 0 && (
-            <button
-              onClick={() => setIsOrderStatusOpen(true)}
-              className="p-2 rounded-xl bg-amber-500/20 text-amber-900 border border-amber-400/40 relative"
-            >
-              <Clock className="w-4 h-4 animate-pulse" />
-            </button>
-          )}
+          </div>
+
+          {/* Right: Active Order Status or Support Trigger */}
+          <div className="flex items-center gap-1.5">
+            {latestActiveOrder ? (
+              <button
+                type="button"
+                onClick={() => setIsOrderStatusOpen(true)}
+                className={cn(
+                  "px-2.5 py-1 rounded-xl text-[10.5px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs",
+                  latestActiveOrder.status === "COOKING"
+                    ? "bg-amber-500 text-zinc-950 border border-amber-400 animate-pulse"
+                    : latestActiveOrder.status === "READY"
+                    ? "bg-emerald-500 text-zinc-950 border border-emerald-400 animate-bounce"
+                    : "bg-sky-500 text-white border border-sky-400"
+                )}
+              >
+                {latestActiveOrder.status === "COOKING" ? (
+                  <>
+                    <ChefHat className="w-3 h-3" />
+                    <span>Dimasak</span>
+                  </>
+                ) : latestActiveOrder.status === "READY" ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Siap!</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3 h-3" />
+                    <span>Antrean</span>
+                  </>
+                )}
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      {/* Left Full-Bleed Sidebar (Docked to Left Edge) */}
+      {/* Live Staff Assistance Tracking Banner (Mobile & Android) */}
+      {activeSupportTicket && (
+        <div
+          className={cn(
+            "w-full px-3 py-2 text-xs font-semibold flex items-center justify-between border-b transition-all select-none z-30 shrink-0",
+            activeSupportTicket.status === "WAITING"
+              ? "bg-amber-50 border-amber-200 text-amber-950"
+              : activeSupportTicket.status === "IN_PROGRESS"
+              ? "bg-emerald-600 border-emerald-700 text-white shadow-xs animate-pulse"
+              : "bg-zinc-900 border-zinc-800 text-white"
+          )}
+        >
+          {activeSupportTicket.status === "WAITING" ? (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-600"></span>
+              </span>
+              <div>
+                <span className="font-black text-[11px] uppercase tracking-tight block leading-tight">Panggilan Bantuan Terkirim</span>
+                <span className="text-[10px] text-amber-800 font-medium">Menunggu staf membaca & merespons...</span>
+              </div>
+            </div>
+          ) : activeSupportTicket.status === "IN_PROGRESS" ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base shrink-0">🏃‍♂️</span>
+              <div>
+                <span className="font-black text-[11px] uppercase tracking-wide block leading-tight">
+                  Staf Sedang OTW ke Meja {tableNumber}!
+                </span>
+                <span className="text-[10px] text-emerald-100 font-medium">
+                  {activeSupportTicket.assignedUserName || "Staff"} sudah membaca & menuju ke meja Anda.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="text-[11px] font-bold">Bantuan staf telah selesai dilayani. Terima kasih!</span>
+            </div>
+          )}
+
+          {activeSupportTicket.status !== "RESOLVED" && (
+            <button
+              type="button"
+              onClick={() => setIsConversationOpen(true)}
+              className={cn(
+                "ml-2 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-lg transition-colors cursor-pointer",
+                activeSupportTicket.status === "IN_PROGRESS"
+                  ? "bg-white text-emerald-800 hover:bg-emerald-50"
+                  : "bg-amber-200 text-amber-950 hover:bg-amber-300"
+              )}
+            >
+              Lihat Chat
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 2-Column Mobile Body */}
+      <div className="flex-1 flex flex-row min-h-0 w-full overflow-hidden">
+        {/* Left Category Rail */}
+        <CustomerSidebar
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelectCategory={(slug) => setActiveCategory(slug)}
+          tableNumber={tableNumber}
+          cartCount={cartTotalItems}
+          onOpenCart={() => setIsCartOpen(true)}
+          onOpenConversation={() => setIsConversationOpen(true)}
+          onOpenOrderStatus={() => setIsOrderStatusOpen(true)}
+          onOpenSupport={() => setIsSupportOpen(true)}
+          onOpenTableSwitch={() => setIsTableSwitchOpen(true)}
+          activeOrderCount={activeOrders.filter((o) => o.status !== "COMPLETED").length}
+          activeSupportTicket={activeSupportTicket}
+        />
+
+        {/* Right Menu Content (Compact Rows) */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto bg-white pb-32">
+          <MenuGrid
+            categoryName={activeCategoryName}
+            categorySlug={activeCategory}
+            items={menuItems}
+            isLoading={isLoadingMenu}
+            searchQuery={searchQuery}
+            onSearchChange={(q) => setSearchQuery(q)}
+            onSelectItem={(item) => setSelectedItemForDetail(item)}
+            cartItemMap={cartItemMap}
+          />
+        </main>
+      </div>
+
+      {/* Floating Bottom Cart Bar */}
+      {cartTotalItems > 0 && (
+        <div className="fixed left-3 right-3 sm:left-auto sm:right-6 sm:w-[480px] bottom-3 z-40 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <button
+            type="button"
+            onClick={() => setIsCartOpen(true)}
+            className="w-full bg-zinc-950 hover:bg-zinc-900 active:scale-[0.99] text-white p-3 rounded-2xl shadow-2xl flex items-center justify-between cursor-pointer border border-zinc-800 transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-amber-500 text-zinc-950 font-black flex items-center justify-center text-xs shadow-xs">
+                {cartTotalItems}
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] text-zinc-400 font-medium leading-none">
+                  Meja {tableNumber}
+                </span>
+                <span className="text-xs font-black text-amber-400 mt-0.5">
+                  {formatCurrency(cart?.total || 0)}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-black text-white bg-zinc-800 group-hover:bg-amber-500 group-hover:text-zinc-950 px-2.5 py-1 rounded-xl transition-colors">
+              <span>Lihat Pesanan</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* AI Composer */}
+      <AIComposer
+        selectedItems={composerSelectedItems}
+        onRemoveSelectedItem={handleRemoveComposerItem}
+        onSendMessage={handleSendMessage}
+        isLoading={isAiSending}
+        onOpenConversation={() => setIsConversationOpen(true)}
+        unreadCount={messages.length > 1 ? 1 : 0}
+        hasCartBottomBar={cartTotalItems > 0}
+      />
+    </div>
+  );
+
+  const renderDesktopExperience = () => (
+    <div className="customer-canvas-bg min-h-screen text-zinc-900 flex flex-row relative">
+      {/* Left Sidebar (Full desktop sidebar) */}
       <CustomerSidebar
         categories={categories}
         activeCategory={activeCategory}
@@ -696,77 +844,77 @@ function CustomerView() {
         onOpenOrderStatus={() => setIsOrderStatusOpen(true)}
         onOpenSupport={() => setIsSupportOpen(true)}
         onOpenTableSwitch={() => setIsTableSwitchOpen(true)}
-        activeOrderCount={
-          activeOrders.filter((o) => o.status !== "COMPLETED").length
-        }
+        activeOrderCount={activeOrders.filter((o) => o.status !== "COMPLETED").length}
         activeSupportTicket={activeSupportTicket}
       />
 
-      {/* Right Main Content Area */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-36 flex flex-col max-w-7xl w-full">
+      {/* Right Main Content Area (Original Desktop Layout) */}
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-36 flex flex-col max-w-7xl w-full overflow-y-auto">
         {/* Floating Live Kitchen Tracking Banner for Customer */}
         {latestActiveOrder && (
-          <div
-            onClick={() => setIsOrderStatusOpen(true)}
-            className={cn(
-              "cursor-pointer mb-6 p-4 rounded-3xl border shadow-xl flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99] backdrop-blur-md",
-              latestActiveOrder.status === "COOKING"
-                ? "bg-amber-500/15 border-amber-400/80 text-amber-950 shadow-amber-500/10"
-                : latestActiveOrder.status === "READY"
-                ? "bg-emerald-500/20 border-emerald-500 text-emerald-950 shadow-emerald-500/15 animate-pulse"
-                : "bg-sky-500/15 border-sky-400/80 text-sky-950 shadow-sky-500/10"
-            )}
-          >
-            <div className="flex items-center gap-3.5">
-              <div
-                className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-md shrink-0",
-                  latestActiveOrder.status === "COOKING"
-                    ? "bg-amber-600 animate-pulse"
-                    : latestActiveOrder.status === "READY"
-                    ? "bg-emerald-600 animate-bounce"
-                    : "bg-sky-600"
-                )}
-              >
-                {latestActiveOrder.status === "COOKING" ? (
-                  <ChefHat className="w-6 h-6" />
-                ) : latestActiveOrder.status === "READY" ? (
-                  <Sparkles className="w-6 h-6" />
-                ) : (
-                  <Clock className="w-6 h-6" />
-                )}
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm sm:text-base">
-                    {latestActiveOrder.status === "COOKING"
-                      ? "👨‍🍳 Pesanan Sedang Dimasak / Diracik di Dapur!"
+          <div className="mb-6">
+            <div
+              onClick={() => setIsOrderStatusOpen(true)}
+              className={cn(
+                "cursor-pointer p-4 rounded-3xl border shadow-xl flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99] backdrop-blur-md",
+                latestActiveOrder.status === "COOKING"
+                  ? "bg-amber-500/15 border-amber-400/80 text-amber-950 shadow-amber-500/10"
+                  : latestActiveOrder.status === "READY"
+                  ? "bg-emerald-500/20 border-emerald-500 text-emerald-950 shadow-emerald-500/15 animate-pulse"
+                  : "bg-sky-500/15 border-sky-400/80 text-sky-950 shadow-sky-500/10"
+              )}
+            >
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-md shrink-0",
+                    latestActiveOrder.status === "COOKING"
+                      ? "bg-amber-600 animate-pulse"
                       : latestActiveOrder.status === "READY"
-                      ? "🚀 Pesanan Siap & Sedang Diantar ke Meja Anda!"
-                      : "🕒 Pesanan Diterima Dapur (Antrean Masuk)"}
-                  </span>
-                  <span className="text-[10.5px] font-mono font-black px-2 py-0.5 rounded-full bg-white text-zinc-900 border border-zinc-200 shadow-2xs">
-                    {latestActiveOrder.orderNumber}
+                      ? "bg-emerald-600 animate-bounce"
+                      : "bg-sky-600"
+                  )}
+                >
+                  {latestActiveOrder.status === "COOKING" ? (
+                    <ChefHat className="w-6 h-6" />
+                  ) : latestActiveOrder.status === "READY" ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : (
+                    <Clock className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-sm sm:text-base">
+                      {latestActiveOrder.status === "COOKING"
+                        ? "👨‍🍳 Pesanan Sedang Dimasak / Diracik di Dapur!"
+                        : latestActiveOrder.status === "READY"
+                        ? "🚀 Pesanan Siap & Sedang Diantar ke Meja Anda!"
+                        : "🕒 Pesanan Diterima Dapur (Antrean Masuk)"}
+                    </span>
+                    <span className="text-[10.5px] font-mono font-black px-2 py-0.5 rounded-full bg-white text-zinc-900 border border-zinc-200 shadow-2xs">
+                      {latestActiveOrder.orderNumber}
+                    </span>
+                  </div>
+                  <span className="text-xs text-zinc-600 font-semibold mt-0.5">
+                    {latestActiveOrder.status === "COOKING"
+                      ? `Tim barista & koki sedang meracik pesanan Meja ${tableNumber} sekarang.`
+                      : latestActiveOrder.status === "READY"
+                      ? `Makanan/minuman sudah siap dan staf sedang mengantarkannya ke Meja ${tableNumber}!`
+                      : `Pesanan Meja ${tableNumber} sudah masuk ke antrean dapur.`}
                   </span>
                 </div>
-                <span className="text-xs text-zinc-600 font-semibold mt-0.5">
-                  {latestActiveOrder.status === "COOKING"
-                    ? `Tim barista & koki sedang meracik pesanan Meja ${tableNumber} sekarang.`
-                    : latestActiveOrder.status === "READY"
-                    ? `Makanan/minuman sudah siap dan staf sedang mengantarkannya ke Meja ${tableNumber}!`
-                    : `Pesanan Meja ${tableNumber} sudah masuk ke antrean dapur.`}
-                </span>
               </div>
-            </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-black text-sky-800 bg-white/90 px-3.5 py-2 rounded-xl border border-sky-200 shrink-0 shadow-2xs hover:bg-sky-50">
-              <span>Lacak Status</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5 text-xs font-black text-sky-800 bg-white/90 px-3.5 py-2 rounded-xl border border-sky-200 shrink-0 shadow-2xs hover:bg-sky-50">
+                <span>Lacak Status</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Right Menu Content */}
+        {/* Menu Grid (Desktop 3-Col Glass Cards) */}
         <MenuGrid
           categoryName={activeCategoryName}
           categorySlug={activeCategory}
@@ -774,10 +922,12 @@ function CustomerView() {
           isLoading={isLoadingMenu}
           searchQuery={searchQuery}
           onSearchChange={(q) => setSearchQuery(q)}
+          onSelectItem={(item) => setSelectedItemForDetail(item)}
+          cartItemMap={cartItemMap}
         />
       </main>
 
-      {/* AI Smart Waiter Composer (Fixed Bottom) */}
+      {/* AI Composer (Desktop Bottom-Right) */}
       <AIComposer
         selectedItems={composerSelectedItems}
         onRemoveSelectedItem={handleRemoveComposerItem}
@@ -785,7 +935,22 @@ function CustomerView() {
         isLoading={isAiSending}
         onOpenConversation={() => setIsConversationOpen(true)}
         unreadCount={messages.length > 1 ? 1 : 0}
+        hasCartBottomBar={cartTotalItems > 0}
       />
+    </div>
+  );
+
+  return (
+    <>
+      {/* 1. Mobile Phone View (Screen < md): Native compact cafe ordering */}
+      <div className="md:hidden min-h-screen flex flex-col">
+        {renderMobileExperience()}
+      </div>
+
+      {/* 2. Tablet (iPad) & Laptop / Desktop View (Screen >= md): Responsive glass dashboard */}
+      <div className="hidden md:block">
+        {renderDesktopExperience()}
+      </div>
 
       {/* Table Switcher Modal (Meja A1 - A10) */}
       <Modal
@@ -876,6 +1041,7 @@ function CustomerView() {
         isCheckingOut={isCheckingOut}
         activeOrder={latestActiveOrder}
         onOpenOrderStatus={() => setIsOrderStatusOpen(true)}
+        activeSupportTicket={activeSupportTicket}
       />
 
       <SupportModal
@@ -884,7 +1050,7 @@ function CustomerView() {
         tableNumber={tableNumber}
         onRequestSupport={handleRequestSupport}
       />
-    </div>
+    </>
   );
 }
 

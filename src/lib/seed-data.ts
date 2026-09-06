@@ -301,6 +301,80 @@ const EXACT_CANONICAL_ITEMS = [
   }
 ];
 
+export function getInventoryCategory(name: string): "MINUMAN" | "MAKANAN" {
+  const n = name.toLowerCase();
+  if (
+    n.includes("kopi") ||
+    n.includes("espresso") ||
+    n.includes("susu") ||
+    n.includes("milk") ||
+    n.includes("sirup") ||
+    n.includes("syrup") ||
+    n.includes("butterscotch") ||
+    n.includes("hazelnut") ||
+    n.includes("karamel") ||
+    n.includes("caramel") ||
+    n.includes("vanilla") ||
+    n.includes("matcha") ||
+    n.includes("teh") ||
+    n.includes("tea") ||
+    n.includes("leci") ||
+    n.includes("lemon") ||
+    n.includes("cokelat") ||
+    n.includes("chocolate") ||
+    n.includes("choco") ||
+    n.includes("red velvet") ||
+    n.includes("taro") ||
+    n.includes("avocado") ||
+    n.includes("almond") ||
+    n.includes("gula cair") ||
+    n.includes("simple syrup")
+  ) {
+    return "MINUMAN";
+  }
+  return "MAKANAN";
+}
+
+export const CANONICAL_INVENTORY_ITEMS = [
+  // --- RACIKAN MINUMAN & BAR (BEVERAGE) ---
+  { name: "Biji Kopi Arabika Espresso", stock: 15, unit: "kg", minStock: 3 },
+  { name: "Susu Fresh Milk", stock: 25, unit: "liter", minStock: 8 },
+  { name: "Susu Oat Milk", stock: 12, unit: "liter", minStock: 4 },
+  { name: "Susu Kental Manis", stock: 15, unit: "kaleng", minStock: 5 },
+  { name: "Gula Cair (Simple Syrup)", stock: 20, unit: "liter", minStock: 5 },
+  { name: "Sirup Butterscotch", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Sirup Hazelnut", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Sirup Karamel", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Sirup Vanilla", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Bubuk Matcha Premium", stock: 2500, unit: "gram", minStock: 500 },
+  { name: "Bubuk Chocolate Dark", stock: 3000, unit: "gram", minStock: 500 },
+  { name: "Bubuk Red Velvet", stock: 2000, unit: "gram", minStock: 500 },
+  { name: "Bubuk Taro", stock: 2000, unit: "gram", minStock: 500 },
+  { name: "Bubuk Almond Choco", stock: 1500, unit: "gram", minStock: 500 },
+  { name: "Bubuk Avocado", stock: 1500, unit: "gram", minStock: 500 },
+  { name: "Daun Teh Hitam Premium", stock: 2000, unit: "gram", minStock: 400 },
+  { name: "Daun Teh Melati (Jasmine)", stock: 2000, unit: "gram", minStock: 400 },
+  { name: "Sirup Leci & Buah Leci", stock: 10, unit: "kaleng", minStock: 3 },
+  { name: "Ekstrak Lemon Tea", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Buah Lemon Segar", stock: 5, unit: "kg", minStock: 2 },
+
+  // --- DAPUR & MAKANAN (KITCHEN & FOOD) ---
+  { name: "Beras", stock: 10, unit: "kg", minStock: 5 },
+  { name: "Gula", stock: 5, unit: "kg", minStock: 5 },
+  { name: "Minyak", stock: 8, unit: "liter", minStock: 5 },
+  { name: "Telur", stock: 30, unit: "butir", minStock: 5 },
+  { name: "Daging Sapi Slice", stock: 15, unit: "kg", minStock: 4 },
+  { name: "Daging Ayam Fillet", stock: 18, unit: "kg", minStock: 5 },
+  { name: "Mie Ramen", stock: 45, unit: "porsi", minStock: 10 },
+  { name: "Rumput Laut (Nori)", stock: 25, unit: "pack", minStock: 5 },
+  { name: "Saus Teriyaki", stock: 8, unit: "botol", minStock: 2 },
+  { name: "Kaldu Ramen Signature", stock: 10, unit: "liter", minStock: 3 },
+  { name: "Bubuk Garlic Parmesan", stock: 1200, unit: "gram", minStock: 300 },
+  { name: "Tepung Crispy", stock: 10, unit: "kg", minStock: 3 },
+  { name: "Mentega / Butter", stock: 8, unit: "kg", minStock: 2 },
+  { name: "Bawang Bombay", stock: 10, unit: "kg", minStock: 3 },
+];
+
 export async function ensureDatabaseSeeded() {
   try {
     for (const ddl of DDL_STATEMENTS) {
@@ -310,75 +384,100 @@ export async function ensureDatabaseSeeded() {
     }
 
     const existingMenu = await prisma.menuItem.findFirst({
-      where: { name: "Butterscotch Izanagi" }
+      where: { name: "Butterscotch Izanagi" },
     });
 
-    if (existingMenu) return;
+    if (!existingMenu) {
+      console.log("Synchronizing authentic Havenso Cafe menu items...");
 
-    console.log("Synchronizing authentic Havenso Cafe menu items...");
+      await prisma.menuItem.deleteMany({});
+      await prisma.category.deleteMany({});
 
-    await prisma.menuItem.deleteMany({});
-    await prisma.category.deleteMany({});
-
-    const catCoffee = await prisma.category.create({
-      data: { name: "Coffee", slug: "coffee", displayOrder: 1, isActive: true },
-    });
-
-    const catNonCoffee = await prisma.category.create({
-      data: { name: "Non-Coffee", slug: "non-coffee", displayOrder: 2, isActive: true },
-    });
-
-    const catTea = await prisma.category.create({
-      data: { name: "Tea", slug: "tea", displayOrder: 3, isActive: true },
-    });
-
-    const catFood = await prisma.category.create({
-      data: { name: "Food", slug: "food", displayOrder: 4, isActive: true },
-    });
-
-    const catMap: Record<string, string> = {
-      coffee: catCoffee.id,
-      "non-coffee": catNonCoffee.id,
-      tea: catTea.id,
-      food: catFood.id,
-    };
-
-    const tableData = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"];
-    for (const t of tableData) {
-      await prisma.table.upsert({
-        where: { tableNumber: t },
-        update: {},
-        create: {
-          tableNumber: t,
-          capacity: 4,
-          location: "Indoor",
-          status: "AVAILABLE",
-          qrCode: `/customer?table=${t}`,
-        },
+      const catCoffee = await prisma.category.create({
+        data: { name: "Coffee", slug: "coffee", displayOrder: 1, isActive: true },
       });
+
+      const catNonCoffee = await prisma.category.create({
+        data: { name: "Non-Coffee", slug: "non-coffee", displayOrder: 2, isActive: true },
+      });
+
+      const catTea = await prisma.category.create({
+        data: { name: "Tea", slug: "tea", displayOrder: 3, isActive: true },
+      });
+
+      const catFood = await prisma.category.create({
+        data: { name: "Food", slug: "food", displayOrder: 4, isActive: true },
+      });
+
+      const catMap: Record<string, string> = {
+        coffee: catCoffee.id,
+        "non-coffee": catNonCoffee.id,
+        tea: catTea.id,
+        food: catFood.id,
+      };
+
+      const tableData = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"];
+      for (const t of tableData) {
+        await prisma.table.upsert({
+          where: { tableNumber: t },
+          update: {},
+          create: {
+            tableNumber: t,
+            capacity: 4,
+            location: "Indoor",
+            status: "AVAILABLE",
+            qrCode: `/customer?table=${t}`,
+          },
+        });
+      }
+
+      for (const it of EXACT_CANONICAL_ITEMS) {
+        const catId = catMap[it.categorySlug] || catCoffee.id;
+        await prisma.menuItem.create({
+          data: {
+            categoryId: catId,
+            name: it.name,
+            slug: it.slug,
+            description: it.description,
+            price: it.price,
+            imageUrl: it.imageUrl,
+            isAvailable: true,
+            stock: it.stock || 50,
+            preparationTime: it.preparationTime || 5,
+            ingredients: it.ingredients || "",
+            allergens: it.allergens || "None",
+            recommendationTags: it.recommendationTags || "[]",
+          },
+        });
+      }
+
+      console.log("All 20 authentic menu items synchronized!");
     }
 
-    for (const it of EXACT_CANONICAL_ITEMS) {
-      const catId = catMap[it.categorySlug] || catCoffee.id;
-      await prisma.menuItem.create({
-        data: {
-          categoryId: catId,
-          name: it.name,
-          slug: it.slug,
-          description: it.description,
-          price: it.price,
-          imageUrl: it.imageUrl,
-          isAvailable: true,
-          stock: it.stock || 50,
-          preparationTime: it.preparationTime || 5,
-          ingredients: it.ingredients || "",
-          allergens: it.allergens || "None",
-          recommendationTags: it.recommendationTags || "[]",
-        },
+    // Seed/Synchronize all canonical inventory items (drinks & food) independently
+    for (const item of CANONICAL_INVENTORY_ITEMS) {
+      const existing = await prisma.inventoryItem.findFirst({
+        where: { name: item.name },
       });
-    }
+      if (!existing) {
+        const status =
+          item.stock <= 0
+            ? "OUT_OF_STOCK"
+            : item.stock <= item.minStock
+            ? "LOW_STOCK"
+            : "AVAILABLE";
 
-    console.log("All 20 authentic menu items synchronized!");
+        await prisma.inventoryItem.create({
+          data: {
+            name: item.name,
+            stock: item.stock,
+            unit: item.unit,
+            minStock: item.minStock,
+            status,
+          },
+        });
+      }
+    }
   } catch (err) {
     console.error("Error in ensureDatabaseSeeded:", err);
   }

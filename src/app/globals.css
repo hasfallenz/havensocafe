@@ -12,8 +12,7 @@
   }
 
   strong, b {
-    font-weight: 800 !important;
-    color: #09090b !important;
+    font-weight: 800;
   }
 }
 
