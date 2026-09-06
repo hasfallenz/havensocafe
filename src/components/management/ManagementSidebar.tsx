@@ -135,14 +135,6 @@ export const ManagementSidebar: React.FC = () => {
           })}
         </nav>
       </div>
-
-      {/* Bottom Status Area */}
-      <div className="p-4 bg-[#0e1116] border-t border-zinc-850 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-bold text-zinc-400">Owner System Active</span>
-        </div>
-      </div>
     </aside>
   );
 };

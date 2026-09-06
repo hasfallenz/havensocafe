@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ensureDatabaseSeeded } from "@/lib/seed-data";
+import { eventBus } from "@/lib/events";
 
 export interface OwnerChatMessage {
   role: "user" | "assistant" | "system";
@@ -354,20 +355,28 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
 
   const isAddCommand =
     pLower.includes("tambah") ||
+    pLower.includes("buat") ||
+    pLower.includes("bikin") ||
+    pLower.includes("daftar") ||
     pLower.includes("masuk") ||
     pLower.includes("restock") ||
     pLower.includes("isi ulang") ||
     pLower.includes("input") ||
     pLower.includes("beli") ||
-    (pLower.includes("stok") && /\d+/.test(pLower));
+    pLower.includes("create") ||
+    pLower.includes("add") ||
+    (pLower.includes("stok") && /\d+/.test(pLower)) ||
+    (pLower.includes("bahan") && (pLower.includes("baru") || pLower.includes("ada")));
 
   if (!isAddCommand) return [];
 
   const clean = prompt
     .replace(
-      /^(tolong|mohon|harap|bisa|coba)?\s*(tambahkan|tambahin|tambah|masukkan|masukin|input|restock|isi ulang|stok)\s*(bahan baku|bahan|stok)?\s*/i,
+      /^(tolong|mohon|harap|bisa|coba|tolong dong)?\s*(tambahkan|tambahin|tambah|buatkan|buat|bikin|bikinin|daftarkan|daftarin|daftar|masukkan|masukin|masuk|input|restock|isi ulang|create|add|beli|stok)\s*(bahan baku|bahan|stok|item|produk)?\s*(baru|anyar|new)?\s*/i,
       ""
     )
+    .replace(/^(bahan baku|bahan|stok|item)\s*(baru)?\s*/i, "")
+    .replace(/^(baru|new)\s+/i, "")
     .trim();
 
   const parts = clean.split(/[,;&]|\s+dan\s+/i).map((s) => s.trim()).filter(Boolean);
@@ -375,14 +384,19 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
 
   for (const part of parts) {
     const subClean = part
-      .replace(/^(tambahkan|tambahin|tambah|masukkan|masukin|stok|bahan baku|bahan)\s*/i, "")
+      .replace(/^(tambahkan|tambahin|tambah|buatkan|buat|bikin|daftarkan|daftarin|masukkan|masukin|stok|bahan baku|bahan|item)\s*(baru)?\s*/i, "")
+      .replace(/^(baru|new)\s+/i, "")
       .trim();
 
     // Pattern 1: [Item Name] [Number] [Unit?] e.g. "minyak 5liter", "gula 5kg"
     const pattern1 = new RegExp(`^([a-zA-Z\\s]+?)\\s*(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?$`, "i");
     const m1 = subClean.match(pattern1);
     if (m1) {
-      const rawName = m1[1].trim().replace(/^(tambah|bahan|stok)\s+/i, "");
+      const rawName = m1[1]
+        .trim()
+        .replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "")
+        .replace(/^(baru|new)\s+/i, "")
+        .trim();
       const amount = parseFloat(m1[2].replace(",", "."));
       let unit = (m1[3] || "").toLowerCase().trim();
       if (!unit) {
@@ -398,12 +412,12 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
     }
 
     // Pattern 2: [Number] [Unit?] [Item Name] e.g. "5 liter minyak", "5kg gula"
-    const pattern2 = new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?\\s*(?:dari|bahan baku|bahan|stok)?\\s*([a-zA-Z\\s]+)$`, "i");
+    const pattern2 = new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?\\s*(?:dari|bahan baku|bahan|stok|baru)?\\s*([a-zA-Z\\s]+)$`, "i");
     const m2 = subClean.match(pattern2);
     if (m2) {
       const amount = parseFloat(m2[1].replace(",", "."));
       let unit = (m2[2] || "").toLowerCase().trim();
-      const rawName = m2[3].trim();
+      const rawName = m2[3].trim().replace(/^(baru|new)\s+/i, "").trim();
       if (!unit) {
         if (rawName.toLowerCase().includes("minyak") || rawName.toLowerCase().includes("susu") || rawName.toLowerCase().includes("air")) unit = "liter";
         else if (rawName.toLowerCase().includes("telur")) unit = "butir";
@@ -412,6 +426,30 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
       }
       if (rawName && !isNaN(amount) && amount > 0) {
         results.push({ name: capitalizeWords(rawName), amount, unit: normalizeUnit(unit) });
+        continue;
+      }
+    }
+
+    // Pattern 3: Item Name only without number (e.g. "buat bahan baku baru Kopi Robusta" or "Keju Mozarella")
+    if (subClean.length >= 2 && !/\d+/.test(subClean)) {
+      const rawName = subClean
+        .replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "")
+        .replace(/^(baru|new)\s+/i, "")
+        .trim();
+      if (
+        rawName &&
+        !/^(bisa|bagaimana|cara|kenapa|apa|gimana|halo|hai|tes)/i.test(rawName) &&
+        rawName.length >= 3
+      ) {
+        let unit = "pcs";
+        const lower = rawName.toLowerCase();
+        if (lower.includes("sirup") || lower.includes("syrup") || lower.includes("kecap") || lower.includes("saus")) unit = "botol";
+        else if (lower.includes("susu") || lower.includes("minyak") || lower.includes("air") || lower.includes("jus") || lower.includes("cair")) unit = "liter";
+        else if (lower.includes("kopi") || lower.includes("beras") || lower.includes("gula") || lower.includes("tepung") || lower.includes("daging") || lower.includes("ayam") || lower.includes("bawang") || lower.includes("keju")) unit = "kg";
+        else if (lower.includes("bubuk") || lower.includes("powder") || lower.includes("matcha") || lower.includes("garlic")) unit = "gram";
+        else if (lower.includes("telur")) unit = "butir";
+
+        results.push({ name: capitalizeWords(rawName), amount: 10, unit: normalizeUnit(unit) });
         continue;
       }
     }
@@ -454,6 +492,13 @@ export async function processHermesOwnerRequest(
         });
       } catch (_) {}
 
+      // Broadcast realtime event so inventory pages update immediately
+      eventBus.broadcast("INVENTORY_CHANGED", {
+        action: "DELETE",
+        itemId: deletedItem.id,
+        name: deletedItem.name,
+      });
+
       const updatedSnapshot = await getOwnerBusinessSnapshot();
       return {
         reply: [
@@ -463,7 +508,7 @@ export async function processHermesOwnerRequest(
           `- 🗑️ **${deletedItem.name}** (Stok terakhir: ${deletedItem.stock} ${deletedItem.unit}) telah resmi dihapus dari sistem inventaris Havenso Cafe.`,
           "",
           "**🔎 Status Operasional**",
-          "Daftar inventori dapur dan bar otomatis tersinkronisasi tanpa bahan ini lagi. Beri tahu saya jika ada penyesuaian lain yang Boss perlukan! 👨‍🍳✨",
+          "Daftar inventori dapur dan bar otomatis tersinkronisasi realtime tanpa bahan ini lagi. Beri tahu saya jika ada penyesuaian lain yang Boss perlukan! 👨‍🍳✨",
         ].join("\n"),
         dataSnapshot: updatedSnapshot,
       };
@@ -517,6 +562,15 @@ export async function processHermesOwnerRequest(
         });
       } catch (_) {}
 
+      // Broadcast realtime event so inventory pages update immediately
+      eventBus.broadcast("INVENTORY_CHANGED", {
+        action: "UPDATE",
+        itemId: targetItem.id,
+        name: targetItem.name,
+        stock: newStock,
+        unit: unitToUse,
+      });
+
       const updatedSnapshot = await getOwnerBusinessSnapshot();
       return {
         reply: [
@@ -526,7 +580,7 @@ export async function processHermesOwnerRequest(
           `- 📝 **${targetItem.name}**: Stok sebelumnya **${targetItem.stock} ${targetItem.unit}** ➔ **Kini Disetel Menjadi: ${newStock} ${unitToUse}** (Status: **${newStatus}**)`,
           "",
           "**🔎 Status Operasional & Dapur**",
-          "Nilai stok terbaru ini otomatis tersinkronisasi dan langsung tampil di monitor dapur, bar, dan staf kasir. Silakan beri tahu saya jika ada data stok lain yang ingin disesuaikan, Boss! 👨‍🍳☕✨",
+          "Nilai stok terbaru ini otomatis tersinkronisasi realtime dan langsung tampil di monitor dapur, bar, dan inventori. Silakan beri tahu saya jika ada data stok lain yang ingin disesuaikan, Boss! 👨‍🍳☕✨",
         ].join("\n"),
         dataSnapshot: updatedSnapshot,
       };
@@ -536,7 +590,7 @@ export async function processHermesOwnerRequest(
           "**⚠️ Boss, Bahan Baku Belum Terdaftar**",
           "",
           `Saya tidak menemukan bahan dengan nama **"${editAction.rawName}"** di daftar inventori.`,
-          "Jika ini merupakan bahan baru, Boss bisa perintahkan saya: *\"tambah bahan baku baru [nama] [jumlah] [satuan]\"* agar saya daftarkan langsung! ☕",
+          "Jika ini merupakan bahan baru, Boss bisa perintahkan saya: *\"tambah bahan baku baru [nama] [jumlah] [satuan]\"* atau *\"buat bahan baru [nama]\"* agar saya daftarkan langsung! ☕",
         ].join("\n"),
       };
     }
@@ -604,7 +658,7 @@ export async function processHermesOwnerRequest(
           isNew: false,
         });
       } else {
-        const newStatus = item.amount <= 5 ? "LOW_STOCK" : "AVAILABLE";
+        const newStatus = item.amount <= 0 ? "OUT_OF_STOCK" : item.amount <= 5 ? "LOW_STOCK" : "AVAILABLE";
         const created = await prisma.inventoryItem.create({
           data: {
             name: item.name,
@@ -644,23 +698,37 @@ export async function processHermesOwnerRequest(
       }
     }
 
+    // Broadcast realtime event so inventory pages update immediately
+    eventBus.broadcast("INVENTORY_CHANGED", {
+      action: "RESTOCK",
+      items: executedItems,
+    });
+
     const updatedSnapshot = await getOwnerBusinessSnapshot();
 
+    const hasNew = executedItems.some((i) => i.isNew);
+    const titleText = hasNew
+      ? "**✅ Siap, Boss! Bahan Baku Baru Berhasil Didaftarkan ke Inventori**"
+      : "**✅ Siap, Boss! Permintaan Restock Bahan Baku Berhasil Dieksekusi**";
+
     const replyLines = [
-      "**✅ Siap, Boss! Permintaan Restock Bahan Baku Berhasil Dieksekusi**",
+      titleText,
       "",
-      "Instruksi Boss sudah langsung saya proses dan catat detik ini ke dalam database inventaris Havenso Cafe:",
+      hasNew
+        ? "Instruksi Boss untuk mendaftarkan bahan baku baru telah selesai diproses ke database inventaris Havenso Cafe:"
+        : "Instruksi Boss sudah langsung saya proses dan catat detik ini ke dalam database inventaris Havenso Cafe:",
       "",
-      ...executedItems.map(
-        (i) =>
-          `- 📦 **${i.name}**: Ditambahkan **+${i.added} ${i.unit}** (Stok awal: ${i.prevStock} ${i.unit} ➔ **Total Sekarang: ${i.currentStock} ${i.unit}**)`
+      ...executedItems.map((i) =>
+        i.isNew
+          ? `- 📦 **${i.name}** [BAHAN BARU]: Berhasil terdaftar dengan stok awal **${i.currentStock} ${i.unit}** (Status: **${i.currentStock <= 5 ? "LOW_STOCK" : "AVAILABLE"}**)`
+          : `- 📦 **${i.name}**: Ditambahkan **+${i.added} ${i.unit}** (Stok awal: ${i.prevStock} ${i.unit} ➔ **Total Sekarang: ${i.currentStock} ${i.unit}**)`
       ),
       "",
       "**🔎 Status Operasional & Dapur**",
-      "Seluruh bahan baku di atas kini tercatat berstatus **AVAILABLE** (Siap Pakai). Data inventaris ini otomatis tersinkronisasi dan dapat langsung dilihat oleh tim dapur maupun staf kasir.",
+      "Seluruh bahan baku di atas kini tercatat dan otomatis tersinkronisasi realtime ke tabel inventori panel management maupun panel staff.",
       "",
       "**💡 Rekomendasi Hermes**",
-      "Stok dapur dan bar sudah aman terkendali. Silakan beri tahu saya jika ada bahan baku lain yang ingin ditambahkan lagi, Boss! 👨‍🍳☕✨",
+      "Stok inventori sudah terupdate secara realtime. Silakan beri tahu saya jika ada bahan baku lain yang ingin didaftarkan atau disesuaikan lagi, Boss! 👨‍🍳☕✨",
     ];
 
     return {
@@ -798,11 +866,16 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
   }
 
   const customModel = process.env.AI_MODEL;
-  const models = customModel
-    ? [customModel, "openai/gpt-oss-120b", "groq/compound"]
-    : baseUrl.includes("groq.com")
-    ? ["openai/gpt-oss-120b", "groq/compound", "llama-3.3-70b-versatile"]
-    : ["openai/gpt-oss-120b", "hermes-3", "groq/compound"];
+  const models: string[] = [];
+  if (baseUrl.includes("groq.com")) {
+    if (customModel && !customModel.includes("/")) {
+      models.push(customModel);
+    }
+    models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
+  } else {
+    if (customModel) models.push(customModel);
+    models.push("openai/gpt-oss-120b", "hermes-3", "groq/compound");
+  }
 
   for (const model of models) {
     try {
@@ -826,7 +899,7 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
         if (cloudFallbackKey && !baseUrl.includes("groq.com")) {
           baseUrl = "https://api.groq.com/openai/v1";
           apiKey = cloudFallbackKey;
-          models.push("openai/gpt-oss-120b", "groq/compound");
+          models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
         }
         continue;
       }
@@ -843,7 +916,7 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
         console.log("[HERMES OWNER] Gateway unreachable or error, switching to cloud fallback Groq...");
         baseUrl = "https://api.groq.com/openai/v1";
         apiKey = cloudFallbackKey;
-        models.push("openai/gpt-oss-120b", "groq/compound");
+        models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
       }
     }
   }

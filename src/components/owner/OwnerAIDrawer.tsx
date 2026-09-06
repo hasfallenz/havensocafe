@@ -22,12 +22,14 @@ interface OwnerAIDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   initialPrompt?: string;
+  onInventoryUpdate?: () => void;
 }
 
 export const OwnerAIDrawer: React.FC<OwnerAIDrawerProps> = ({
   isOpen,
   onClose,
   initialPrompt,
+  onInventoryUpdate,
 }) => {
   const [messages, setMessages] = useState<OwnerDrawerMessage[]>([]);
   const [input, setInput] = useState("");
@@ -151,6 +153,7 @@ export const OwnerAIDrawer: React.FC<OwnerAIDrawerProps> = ({
           createdAt: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
+        onInventoryUpdate?.();
       } else {
         const errorMsg: OwnerDrawerMessage = {
           id: `err-${Date.now()}`,

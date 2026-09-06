@@ -381,6 +381,7 @@ export default function InventoryPage() {
           setIsAIDrawerOpen(false);
           loadInventory();
         }}
+        onInventoryUpdate={loadInventory}
         initialPrompt={initialDrawerPrompt}
       />
     </div>
