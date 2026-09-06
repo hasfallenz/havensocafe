@@ -95,9 +95,6 @@ export default function DedicatedStaffPage() {
   // Report Modal State
   const [selectedReportItem, setSelectedReportItem] = useState<InventoryItemData | null>(null);
   const [reportActualStock, setReportActualStock] = useState<string>("");
-  const [reportType, setReportType] = useState<"STOCK_OPNAME" | "SISA_SHIFT" | "BAHAN_RUSAK" | "RESTOCK_REQUEST">("STOCK_OPNAME");
-  const [reportStaffName, setReportStaffName] = useState<string>("Staff Barista / Dapur");
-  const [reportNotes, setReportNotes] = useState<string>("");
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
   const [reportSuccessToast, setReportSuccessToast] = useState<string | null>(null);
 
@@ -206,8 +203,6 @@ export default function DedicatedStaffPage() {
   const handleOpenReportModal = (item: InventoryItemData) => {
     setSelectedReportItem(item);
     setReportActualStock(String(item.stock));
-    setReportType("STOCK_OPNAME");
-    setReportNotes("");
   };
 
   const handleSubmitStockReport = async (e: React.FormEvent) => {
@@ -215,7 +210,7 @@ export default function DedicatedStaffPage() {
     if (!selectedReportItem) return;
     const num = parseFloat(reportActualStock);
     if (isNaN(num) || num < 0) {
-      alert("Masukkan jumlah stok fisik yang valid (angka 0 atau lebih).");
+      alert("Masukkan jumlah stok yang valid (angka 0 atau lebih).");
       return;
     }
 
@@ -227,25 +222,24 @@ export default function DedicatedStaffPage() {
         body: JSON.stringify({
           itemId: selectedReportItem.id,
           actualStock: num,
-          staffName: reportStaffName.trim() || "Staff Operasional",
-          reportType,
-          notes: reportNotes.trim(),
+          staffName: "Staff Barista / Dapur",
+          reportType: "UPDATE_STOK",
+          notes: "",
         }),
       });
       const json = await res.json();
       if (json.success) {
-        setReportSuccessToast(`Laporan stok "${selectedReportItem.name}" berhasil dicatat: ${num} ${selectedReportItem.unit}`);
+        setReportSuccessToast(`Stok "${selectedReportItem.name}" berhasil diperbarui: ${num} ${selectedReportItem.unit}`);
         setSelectedReportItem(null);
         setReportActualStock("");
-        setReportNotes("");
         loadInventoryData();
-        setTimeout(() => setReportSuccessToast(null), 4000);
+        setTimeout(() => setReportSuccessToast(null), 3000);
       } else {
-        alert(json.error?.message || "Gagal menyimpan laporan stok.");
+        alert(json.error?.message || "Gagal memperbarui stok.");
       }
     } catch (err) {
       console.error("Submit stock report error:", err);
-      alert("Terjadi kesalahan jaringan saat mengirim laporan stok.");
+      alert("Terjadi kesalahan jaringan saat memperbarui stok.");
     } finally {
       setIsSubmittingReport(false);
     }
@@ -923,14 +917,15 @@ export default function DedicatedStaffPage() {
                         </div>
                       </div>
 
-                      {/* Action Button: Catat / Lapor Stok Fisik */}
+                      {/* Action Button: Kurang & Tambah Stok */}
                       <button
                         type="button"
                         onClick={() => handleOpenReportModal(item)}
                         className="w-full py-2.5 px-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-98 text-white text-xs font-black shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <ClipboardCheck className="w-4 h-4 text-amber-400" />
-                        <span>Catat / Lapor Stok Fisik</span>
+                        <Plus className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Kurang / Tambah Stok</span>
+                        <Minus className="w-3.5 h-3.5 text-amber-400" />
                       </button>
                     </div>
                   );
@@ -983,10 +978,10 @@ export default function DedicatedStaffPage() {
         )}
       </main>
 
-      {/* Modal: Form Laporan Stok Fisik Bahan Baku */}
+      {/* Modal: Update / Sesuaikan Stok Bahan */}
       {selectedReportItem && (
         <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-3.5 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 border border-zinc-200 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 border border-zinc-200 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
@@ -996,7 +991,7 @@ export default function DedicatedStaffPage() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm sm:text-base text-zinc-900 leading-tight">
-                    Catat Laporan Stok Bahan
+                    Update Stok Bahan
                   </h3>
                   <p className="text-[11px] text-zinc-500 font-semibold">
                     {selectedReportItem.name} • Satuan: {selectedReportItem.unit}
@@ -1014,17 +1009,17 @@ export default function DedicatedStaffPage() {
 
             {/* Current Recorded Stock Card */}
             <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between text-xs">
-              <span className="font-bold text-zinc-500">Stok Saat Ini di Sistem:</span>
+              <span className="font-bold text-zinc-500">Stok Saat Ini:</span>
               <span className="font-mono font-black text-sm text-zinc-900">
                 {selectedReportItem.stock} {selectedReportItem.unit}
               </span>
             </div>
 
             <form onSubmit={handleSubmitStockReport} className="flex flex-col gap-4">
-              {/* Field 1: Actual Physical Stock Input with Stepper */}
+              {/* Actual Stock Input with Stepper */}
               <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1.5">
-                  Jumlah Stok Fisik Nyata Tersisa *
+                <label className="text-xs font-bold text-zinc-700 block mb-2 text-center">
+                  Sesuaikan Jumlah Stok
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -1034,10 +1029,10 @@ export default function DedicatedStaffPage() {
                       const nextVal = Math.max(0, current - 1);
                       setReportActualStock(String(Math.round(nextVal * 10) / 10));
                     }}
-                    className="w-10 h-10 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-black flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    className="w-11 h-11 rounded-2xl bg-zinc-100 hover:bg-zinc-200 active:scale-95 text-zinc-800 font-black flex items-center justify-center transition-all cursor-pointer shrink-0"
                     title="Kurangi 1"
                   >
-                    <Minus className="w-4 h-4" />
+                    <Minus className="w-5 h-5" />
                   </button>
 
                   <div className="relative flex-1">
@@ -1049,7 +1044,7 @@ export default function DedicatedStaffPage() {
                       value={reportActualStock}
                       onChange={(e) => setReportActualStock(e.target.value)}
                       placeholder="0"
-                      className="w-full text-center font-mono font-black text-base py-2 px-3 rounded-xl border border-zinc-300 focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
+                      className="w-full text-center font-mono font-black text-lg py-2.5 px-3 rounded-2xl border border-zinc-300 focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 pointer-events-none">
                       {selectedReportItem.unit}
@@ -1063,124 +1058,30 @@ export default function DedicatedStaffPage() {
                       const nextVal = current + 1;
                       setReportActualStock(String(Math.round(nextVal * 10) / 10));
                     }}
-                    className="w-10 h-10 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-black flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    className="w-11 h-11 rounded-2xl bg-zinc-100 hover:bg-zinc-200 active:scale-95 text-zinc-800 font-black flex items-center justify-center transition-all cursor-pointer shrink-0"
                     title="Tambah 1"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5" />
                   </button>
                 </div>
 
-                {/* Discrepancy Indicator */}
-                {(() => {
-                  const inputVal = parseFloat(reportActualStock);
-                  if (isNaN(inputVal)) return null;
-                  const diff = Math.round((inputVal - selectedReportItem.stock) * 100) / 100;
-                  return (
-                    <div className="mt-2 flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl border font-bold">
-                      <span className="text-zinc-500">Perkiraan Selisih:</span>
-                      <span
-                        className={
-                          diff > 0
-                            ? "text-emerald-700"
-                            : diff < 0
-                            ? "text-rose-700"
-                            : "text-zinc-600"
-                        }
-                      >
-                        {diff > 0
-                          ? `+${diff} ${selectedReportItem.unit} (Lebih banyak)`
-                          : diff < 0
-                          ? `${diff} ${selectedReportItem.unit} (Berkurang / Terpakai)`
-                          : `Sesuai data sistem`}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Field 2: Report Type Preset Buttons */}
-              <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1.5">
-                  Jenis Laporan Operasional
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setReportType("STOCK_OPNAME")}
-                    className={`p-2 rounded-xl text-left text-[11px] font-bold border transition-all cursor-pointer ${
-                      reportType === "STOCK_OPNAME"
-                        ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
-                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                    }`}
-                  >
-                    📋 Opname Rutin
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setReportType("SISA_SHIFT")}
-                    className={`p-2 rounded-xl text-left text-[11px] font-bold border transition-all cursor-pointer ${
-                      reportType === "SISA_SHIFT"
-                        ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
-                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                    }`}
-                  >
-                    ⏰ Sisa Akhir Shift
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setReportType("BAHAN_RUSAK")}
-                    className={`p-2 rounded-xl text-left text-[11px] font-bold border transition-all cursor-pointer ${
-                      reportType === "BAHAN_RUSAK"
-                        ? "bg-rose-700 text-white border-rose-700 shadow-xs"
-                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-rose-50"
-                    }`}
-                  >
-                    ⚠️ Rusak / Basi / Tumpah
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setReportType("RESTOCK_REQUEST")}
-                    className={`p-2 rounded-xl text-left text-[11px] font-bold border transition-all cursor-pointer ${
-                      reportType === "RESTOCK_REQUEST"
-                        ? "bg-amber-600 text-white border-amber-600 shadow-xs"
-                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-amber-50"
-                    }`}
-                  >
-                    📦 Stok Menipis
-                  </button>
+                {/* Quick Step Helper Chips */}
+                <div className="flex items-center justify-center gap-1.5 mt-2.5">
+                  {[-5, -1, 1, 5].map((delta) => (
+                    <button
+                      key={delta}
+                      type="button"
+                      onClick={() => {
+                        const current = parseFloat(reportActualStock) || 0;
+                        const nextVal = Math.max(0, current + delta);
+                        setReportActualStock(String(Math.round(nextVal * 10) / 10));
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      {delta > 0 ? `+${delta}` : delta}
+                    </button>
+                  ))}
                 </div>
-              </div>
-
-              {/* Field 3: Staff Name */}
-              <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1">
-                  Nama / Posisi Staf Pelapor
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={reportStaffName}
-                  onChange={(e) => setReportStaffName(e.target.value)}
-                  placeholder="Contoh: Barista Pagi / Kitchen Staff"
-                  className="w-full text-xs py-2 px-3 rounded-xl border border-zinc-300 focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Field 4: Optional Notes */}
-              <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1">
-                  Catatan Tambahan (Opsional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={reportNotes}
-                  onChange={(e) => setReportNotes(e.target.value)}
-                  placeholder="Contoh: Ada 1 botol tumpah, susu mendekati expired, dsb..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-300 focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
-                />
               </div>
 
               {/* Submit Buttons */}
@@ -1200,9 +1101,9 @@ export default function DedicatedStaffPage() {
                   {isSubmittingReport ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
                   ) : (
-                    <Send className="w-3.5 h-3.5 text-amber-400" />
+                    <CheckCircle2 className="w-4 h-4 text-amber-400" />
                   )}
-                  <span>Kirim Laporan Stok</span>
+                  <span>Simpan Stok</span>
                 </button>
               </div>
             </form>
