@@ -90,7 +90,6 @@ export default function DedicatedStaffPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItemData[]>([]);
   const [inventoryReports, setInventoryReports] = useState<StaffStockReportLog[]>([]);
   const [inventorySearch, setInventorySearch] = useState("");
-  const [inventoryCategory, setInventoryCategory] = useState<"ALL" | "MINUMAN" | "MAKANAN" | "LOW_STOCK">("ALL");
   const [isInventoryLoading, setIsInventoryLoading] = useState(false);
 
   // Report Modal State
@@ -252,35 +251,16 @@ export default function DedicatedStaffPage() {
     }
   };
 
-  const drinkCount = useMemo(
-    () => inventoryItems.filter((i) => getCategory(i.name) === "MINUMAN").length,
-    [inventoryItems]
-  );
-  const foodCount = useMemo(
-    () => inventoryItems.filter((i) => getCategory(i.name) === "MAKANAN").length,
-    [inventoryItems]
-  );
   const lowStockCount = useMemo(
     () => inventoryItems.filter((i) => i.stock <= i.minStock).length,
     [inventoryItems]
   );
 
   const filteredInventoryItems = useMemo(() => {
-    return inventoryItems.filter((item) => {
-      const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase());
-      const isDrink = getCategory(item.name) === "MINUMAN";
-      const isFood = getCategory(item.name) === "MAKANAN";
-      const isLow = item.stock <= item.minStock;
-
-      const matchesCat =
-        inventoryCategory === "ALL" ||
-        (inventoryCategory === "MINUMAN" && isDrink) ||
-        (inventoryCategory === "MAKANAN" && isFood) ||
-        (inventoryCategory === "LOW_STOCK" && isLow);
-
-      return matchesSearch && matchesCat;
-    });
-  }, [inventoryItems, inventorySearch, inventoryCategory]);
+    return inventoryItems.filter((item) =>
+      item.name.toLowerCase().includes(inventorySearch.toLowerCase())
+    );
+  }, [inventoryItems, inventorySearch]);
 
   const handleTakeRequest = async (ticket: SupportTicketData) => {
     setSubmittingTicketId(ticket.id);
@@ -835,105 +815,28 @@ export default function DedicatedStaffPage() {
         {/* Tab 3: Staff Inventory & Stock Reporting */}
         {activeTab === "inventory" && (
           <div className="flex flex-col gap-5">
-            {/* Header Card with Quick Refresh */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-white border border-zinc-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="p-2 rounded-xl bg-zinc-950 text-amber-400">
-                    <Boxes className="w-5 h-5" />
-                  </span>
-                  <div>
-                    <h2 className="font-extrabold text-sm sm:text-base text-zinc-900 tracking-tight">
-                      Pencatatan & Laporan Stok Bahan Baku
-                    </h2>
-                    <p className="text-[11px] sm:text-xs text-zinc-500 font-medium">
-                      Laporkan sisa fisik bahan barista & dapur, opname shift, atau bahan rusak
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={loadInventoryData}
-                  disabled={isInventoryLoading}
-                  className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-                  title="Segarkan data inventori"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isInventoryLoading ? "animate-spin" : ""}`} />
-                  <span>Segarkan</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Category Filter Pills & Search */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInventoryCategory("ALL")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    inventoryCategory === "ALL"
-                      ? "bg-zinc-900 text-white shadow-xs"
-                      : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50"
-                  }`}
-                >
-                  <Boxes className="w-3.5 h-3.5" />
-                  <span>Semua ({inventoryItems.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setInventoryCategory("MINUMAN")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    inventoryCategory === "MINUMAN"
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-white text-zinc-600 border border-zinc-200 hover:bg-amber-50/50"
-                  }`}
-                >
-                  <Coffee className="w-3.5 h-3.5" />
-                  <span>Minuman & Bar ({drinkCount})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setInventoryCategory("MAKANAN")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    inventoryCategory === "MAKANAN"
-                      ? "bg-orange-600 text-white shadow-xs"
-                      : "bg-white text-zinc-600 border border-zinc-200 hover:bg-orange-50/50"
-                  }`}
-                >
-                  <UtensilsCrossed className="w-3.5 h-3.5" />
-                  <span>Makanan & Dapur ({foodCount})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setInventoryCategory("LOW_STOCK")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    inventoryCategory === "LOW_STOCK"
-                      ? "bg-rose-600 text-white shadow-xs"
-                      : "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50/50"
-                  }`}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Kritis / Menipis ({lowStockCount})</span>
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-64">
+            {/* Search Bar & Quick Refresh */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 sm:max-w-xs">
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={inventorySearch}
                   onChange={(e) => setInventorySearch(e.target.value)}
                   placeholder="Cari nama bahan baku..."
-                  className="w-full pl-10 pr-4 py-1.5 rounded-xl bg-white border border-zinc-200 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden"
+                  className="w-full pl-10 pr-4 py-2 rounded-2xl bg-white border border-zinc-200 text-xs focus:ring-2 focus:ring-zinc-900 focus:outline-hidden shadow-2xs"
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={loadInventoryData}
+                disabled={isInventoryLoading}
+                className="p-2.5 bg-white hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 text-xs rounded-2xl border border-zinc-200 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-60 shadow-2xs"
+                title="Segarkan data inventori"
+              >
+                <RefreshCw className={`w-4 h-4 ${isInventoryLoading ? "animate-spin" : ""}`} />
+              </button>
             </div>
 
             {/* Inventory Items Grid */}
