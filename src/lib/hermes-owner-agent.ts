@@ -338,8 +338,79 @@ export function parseEditStockItem(
   return null;
 }
 
-export function parseRestockItems(prompt: string): ParsedRestockItem[] {
-  const pLower = prompt.toLowerCase();
+const FORBIDDEN_MATERIAL_NAMES = new Set([
+  "mau", "ingin", "tambah", "tambahkan", "buat", "bikin", "daftar", "daftarkan",
+  "bahan", "baku", "bahan baku", "bahan baru", "bahan baku baru", "stok", "stok baru",
+  "baru", "new", "item", "item baru", "produk", "produk baru", "ada", "semua",
+  "tolong", "mohon", "coba", "bisa", "dong", "ya", "boss", "bos", "apa", "gimana"
+]);
+
+export function checkGenericInventoryIntent(
+  prompt: string,
+  existingItems: Array<{ id: string; name: string }> = []
+): "NEW_MATERIAL_PROMPT" | "RESTOCK_EXISTING_PROMPT" | null {
+  const pLower = prompt.toLowerCase().trim();
+
+  // If the prompt contains a number, it's likely a specific quantity instruction
+  if (/\d+/.test(pLower)) return null;
+
+  // If the prompt matches an existing item name exactly
+  const matchesExisting = existingItems.some(
+    (i) => i.name.toLowerCase() === pLower || pLower.startsWith(i.name.toLowerCase() + " ")
+  );
+  if (matchesExisting) return null;
+
+  // Normalize by removing politeness / filler words
+  const normalized = pLower
+    .replace(/^(halo|hai|p|pe|tes|test|permisi|bro|boss|bos|min|admin|tolong dong|tolong|mohon|harap|bisa dong|bisa|coba)?\s*/gi, "")
+    .replace(/\s*(dong|ya|min|boss|bos|kak|bro|sih)$/gi, "")
+    .trim();
+
+  // 1. Generic "Tambah Bahan Baku Baru" / "Buat Bahan Baru" intent
+  const isNewMaterialGeneral =
+    /^(mau|ingin|pengen|bisa|tolong)?\s*(tambah|buat|bikin|daftarkan|daftarin|create|input)\s*(bahan baku baru|bahan baru|bahan baku|item baru|produk baru)$/i.test(normalized) ||
+    /^(tambah|buat|bikin|daftarkan|daftarin|create|input)\s*(bahan baku baru|bahan baru|bahan baku)$/i.test(normalized) ||
+    normalized === "mau tambah bahan baku" ||
+    normalized === "tambah bahan baku" ||
+    normalized === "mau tambah bahan baru" ||
+    normalized === "tambah bahan baru" ||
+    normalized === "mau tambah bahan baku baru" ||
+    normalized === "tambah bahan baku baru" ||
+    normalized === "buat bahan baku baru" ||
+    normalized === "buat bahan baru" ||
+    normalized === "bikin bahan baku baru" ||
+    normalized === "bikin bahan baru" ||
+    normalized === "daftarkan bahan baru" ||
+    normalized === "daftarkan bahan baku baru";
+
+  if (isNewMaterialGeneral) return "NEW_MATERIAL_PROMPT";
+
+  // 2. Generic "Tambah Stok" / "Restock" intent
+  const isRestockGeneral =
+    /^(mau|ingin|pengen|bisa|tolong)?\s*(tambah|isi ulang|update|koreksi)?\s*stok(\s*baru)?$/i.test(normalized) ||
+    /^(mau|ingin|pengen)?\s*restock(\s*stok|\s*bahan)?$/i.test(normalized) ||
+    normalized === "tambah stok" ||
+    normalized === "mau tambah stok" ||
+    normalized === "tambah stok baru" ||
+    normalized === "mau restock" ||
+    normalized === "restock" ||
+    normalized === "restock bahan" ||
+    normalized === "restock stok" ||
+    normalized === "isi ulang stok";
+
+  if (isRestockGeneral) return "RESTOCK_EXISTING_PROMPT";
+
+  return null;
+}
+
+export function parseRestockItems(
+  prompt: string,
+  isContextAnswering: boolean = false
+): ParsedRestockItem[] {
+  const pLower = prompt.toLowerCase().trim();
+
+  // If it's a generic intent without specific item, do NOT parse as items
+  if (checkGenericInventoryIntent(prompt)) return [];
 
   const isEditOrDelete =
     pLower.includes("hapus") ||
@@ -354,6 +425,7 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
   if (isEditOrDelete) return [];
 
   const isAddCommand =
+    isContextAnswering ||
     pLower.includes("tambah") ||
     pLower.includes("buat") ||
     pLower.includes("bikin") ||
@@ -365,12 +437,12 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
     pLower.includes("beli") ||
     pLower.includes("create") ||
     pLower.includes("add") ||
-    (pLower.includes("stok") && /\d+/.test(pLower)) ||
-    (pLower.includes("bahan") && (pLower.includes("baru") || pLower.includes("ada")));
+    (/\d+/.test(pLower) && new RegExp(UNIT_REGEX, "i").test(pLower));
 
   if (!isAddCommand) return [];
 
-  const clean = prompt
+  // Remove prefixes
+  let clean = prompt
     .replace(
       /^(tolong|mohon|harap|bisa|coba|tolong dong)?\s*(tambahkan|tambahin|tambah|buatkan|buat|bikin|bikinin|daftarkan|daftarin|daftar|masukkan|masukin|masuk|input|restock|isi ulang|create|add|beli|stok)\s*(bahan baku|bahan|stok|item|produk)?\s*(baru|anyar|new)?\s*/i,
       ""
@@ -383,20 +455,35 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
   const results: ParsedRestockItem[] = [];
 
   for (const part of parts) {
-    const subClean = part
+    let subClean = part
       .replace(/^(tambahkan|tambahin|tambah|buatkan|buat|bikin|daftarkan|daftarin|masukkan|masukin|stok|bahan baku|bahan|item)\s*(baru)?\s*/i, "")
       .replace(/^(baru|new)\s+/i, "")
       .trim();
 
-    // Pattern 1: [Item Name] [Number] [Unit?] e.g. "minyak 5liter", "gula 5kg"
+    // Pattern 0: [Item Name] (?:tambah|tambahin|tambahkan) [Number] [Unit?] e.g. "beras tambah 6kg", "minyak tambah 5 liter"
+    const pattern0 = new RegExp(`^(.*?)\\s+(?:tambah|tambahin|tambahkan|isi|masuk|buat|bikin)\\s+(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?$`, "i");
+    const m0 = subClean.match(pattern0);
+    if (m0) {
+      let rawName = m0[1].trim().replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "").replace(/^(baru|new)\s+/i, "").trim();
+      const amount = parseFloat(m0[2].replace(",", "."));
+      let unit = (m0[3] || "").toLowerCase().trim();
+      if (!unit) {
+        if (rawName.toLowerCase().includes("minyak") || rawName.toLowerCase().includes("susu") || rawName.toLowerCase().includes("air")) unit = "liter";
+        else if (rawName.toLowerCase().includes("telur")) unit = "butir";
+        else if (rawName.toLowerCase().includes("beras") || rawName.toLowerCase().includes("gula") || rawName.toLowerCase().includes("kopi") || rawName.toLowerCase().includes("daging")) unit = "kg";
+        else unit = "pcs";
+      }
+      if (rawName && !FORBIDDEN_MATERIAL_NAMES.has(rawName.toLowerCase()) && !isNaN(amount) && amount > 0) {
+        results.push({ name: capitalizeWords(rawName), amount, unit: normalizeUnit(unit) });
+        continue;
+      }
+    }
+
+    // Pattern 1: [Item Name] [Number] [Unit?] e.g. "minyak 5liter", "gula 5kg", "kacang almond 10kg"
     const pattern1 = new RegExp(`^([a-zA-Z\\s]+?)\\s*(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?$`, "i");
     const m1 = subClean.match(pattern1);
     if (m1) {
-      const rawName = m1[1]
-        .trim()
-        .replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "")
-        .replace(/^(baru|new)\s+/i, "")
-        .trim();
+      let rawName = m1[1].trim().replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "").replace(/^(baru|new)\s+/i, "").trim();
       const amount = parseFloat(m1[2].replace(",", "."));
       let unit = (m1[3] || "").toLowerCase().trim();
       if (!unit) {
@@ -405,13 +492,13 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
         else if (rawName.toLowerCase().includes("beras") || rawName.toLowerCase().includes("gula") || rawName.toLowerCase().includes("kopi") || rawName.toLowerCase().includes("daging")) unit = "kg";
         else unit = "pcs";
       }
-      if (rawName && !isNaN(amount) && amount > 0) {
+      if (rawName && !FORBIDDEN_MATERIAL_NAMES.has(rawName.toLowerCase()) && !isNaN(amount) && amount > 0) {
         results.push({ name: capitalizeWords(rawName), amount, unit: normalizeUnit(unit) });
         continue;
       }
     }
 
-    // Pattern 2: [Number] [Unit?] [Item Name] e.g. "5 liter minyak", "5kg gula"
+    // Pattern 2: [Number] [Unit?] [Item Name] e.g. "5 liter minyak", "5kg gula", "10kg kacang almond"
     const pattern2 = new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(${UNIT_REGEX})?\\s*(?:dari|bahan baku|bahan|stok|baru)?\\s*([a-zA-Z\\s]+)$`, "i");
     const m2 = subClean.match(pattern2);
     if (m2) {
@@ -424,13 +511,13 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
         else if (rawName.toLowerCase().includes("beras") || rawName.toLowerCase().includes("gula") || rawName.toLowerCase().includes("kopi") || rawName.toLowerCase().includes("daging")) unit = "kg";
         else unit = "pcs";
       }
-      if (rawName && !isNaN(amount) && amount > 0) {
+      if (rawName && !FORBIDDEN_MATERIAL_NAMES.has(rawName.toLowerCase()) && !isNaN(amount) && amount > 0) {
         results.push({ name: capitalizeWords(rawName), amount, unit: normalizeUnit(unit) });
         continue;
       }
     }
 
-    // Pattern 3: Item Name only without number (e.g. "buat bahan baku baru Kopi Robusta" or "Keju Mozarella")
+    // Pattern 3: Item Name only without number (e.g. "Kopi Robusta" or "Keju Mozarella")
     if (subClean.length >= 2 && !/\d+/.test(subClean)) {
       const rawName = subClean
         .replace(/^(tambah|buat|bikin|daftar|masuk|bahan|stok)\s+/i, "")
@@ -438,6 +525,7 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
         .trim();
       if (
         rawName &&
+        !FORBIDDEN_MATERIAL_NAMES.has(rawName.toLowerCase()) &&
         !/^(bisa|bagaimana|cara|kenapa|apa|gimana|halo|hai|tes)/i.test(rawName) &&
         rawName.length >= 3
       ) {
@@ -445,7 +533,7 @@ export function parseRestockItems(prompt: string): ParsedRestockItem[] {
         const lower = rawName.toLowerCase();
         if (lower.includes("sirup") || lower.includes("syrup") || lower.includes("kecap") || lower.includes("saus")) unit = "botol";
         else if (lower.includes("susu") || lower.includes("minyak") || lower.includes("air") || lower.includes("jus") || lower.includes("cair")) unit = "liter";
-        else if (lower.includes("kopi") || lower.includes("beras") || lower.includes("gula") || lower.includes("tepung") || lower.includes("daging") || lower.includes("ayam") || lower.includes("bawang") || lower.includes("keju")) unit = "kg";
+        else if (lower.includes("kopi") || lower.includes("beras") || lower.includes("gula") || lower.includes("tepung") || lower.includes("daging") || lower.includes("ayam") || lower.includes("bawang") || lower.includes("keju") || lower.includes("kacang")) unit = "kg";
         else if (lower.includes("bubuk") || lower.includes("powder") || lower.includes("matcha") || lower.includes("garlic")) unit = "gram";
         else if (lower.includes("telur")) unit = "butir";
 
@@ -466,6 +554,51 @@ export async function processHermesOwnerRequest(
   conversationHistory: OwnerChatMessage[] = []
 ): Promise<OwnerAgentResponse> {
   const existingInventory = await prisma.inventoryItem.findMany();
+
+  // 0. CHECK GENERIC INTENTS (Validasi Otak Hermes Sebelum Menggerakkan Tangan)
+  const genericIntent = checkGenericInventoryIntent(userPrompt, existingInventory);
+
+  if (genericIntent === "RESTOCK_EXISTING_PROMPT") {
+    const lowStockItems = existingInventory.filter(
+      (i) => i.status === "LOW_STOCK" || i.status === "OUT_OF_STOCK" || i.stock <= i.minStock
+    );
+    let lowStockText = "";
+    if (lowStockItems.length > 0) {
+      lowStockText = "\n\n⚠️ **Rekomendasi Bahan Kritis / Menipis Saat Ini:**\n" +
+        lowStockItems.slice(0, 4).map((i) => `- **${i.name}**: tersisa ${i.stock} ${i.unit} (Batas Min: ${i.minStock} ${i.unit})`).join("\n");
+    }
+
+    return {
+      reply: [
+        "**Baik Boss, mau tambah stok bahan apa?** ☕",
+        "",
+        "Boss bisa bebas memilih bahan yang sudah ada di inventori kafe, misalnya:",
+        "- *“Beras tambah 6kg”*",
+        "- *“Minyak 5 liter”*",
+        "- *“Susu Fresh Milk 10 liter”*",
+        "- *“Telur 30 butir”*" + lowStockText,
+        "",
+        "Silakan sebutkan bahan dan jumlahnya, nanti tangan saya yang langsung bekerja menambahkan stoknya di sistem inventori! 👨‍🍳📦",
+      ].join("\n"),
+      dataSnapshot: await getOwnerBusinessSnapshot(),
+    };
+  }
+
+  if (genericIntent === "NEW_MATERIAL_PROMPT") {
+    return {
+      reply: [
+        "**Boleh, Boss! Mau tambah bahan baku apa?** ✨",
+        "",
+        "Silakan sebutkan nama bahan baku baru yang ingin dibuat, perkiraan stok awal, dan satuannya, misalnya:",
+        "- *“Kacang Almond 10kg”*",
+        "- *“Sirup Pandan 5 botol”*",
+        "- *“Keju Mozarella 5 kg”*",
+        "",
+        "Beri tahu saya nama bahannya, nanti tangan saya yang langsung bergerak membuatkan (*create*) bahan baku baru tersebut di inventori kafe! 👨‍🍳📦",
+      ].join("\n"),
+      dataSnapshot: await getOwnerBusinessSnapshot(),
+    };
+  }
 
   // ACTION HANDLER 1: Hapus Bahan Baku (Otak & Tangan Hermes AI)
   const deleteAction = parseDeleteInventoryItem(userPrompt, existingInventory);
@@ -597,7 +730,24 @@ export async function processHermesOwnerRequest(
   }
 
   // ACTION HANDLER 3: Restock / Tambah Bahan Baku (Otak & Tangan Hermes AI)
-  const restockItems = parseRestockItems(userPrompt);
+  const lastAssistantMsg = [...conversationHistory]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  const lastAssistantContent = (lastAssistantMsg?.content || "").toLowerCase();
+
+  const isAnsweringNewMaterialQuestion =
+    lastAssistantContent.includes("mau daftarkan bahan baku baru apa") ||
+    lastAssistantContent.includes("mau tambah bahan baku apa") ||
+    lastAssistantContent.includes("bahan baku baru apa");
+
+  const isAnsweringRestockQuestion =
+    lastAssistantContent.includes("mau tambah stok bahan apa") ||
+    lastAssistantContent.includes("mau tambah stok bahan yang mana") ||
+    lastAssistantContent.includes("tambah stok bahan");
+
+  const isContextAnswering = isAnsweringNewMaterialQuestion || isAnsweringRestockQuestion;
+
+  const restockItems = parseRestockItems(userPrompt, isContextAnswering);
   if (restockItems.length > 0) {
     const executedItems: Array<{
       name: string;
@@ -707,28 +857,39 @@ export async function processHermesOwnerRequest(
     const updatedSnapshot = await getOwnerBusinessSnapshot();
 
     const hasNew = executedItems.some((i) => i.isNew);
-    const titleText = hasNew
-      ? "**✅ Siap, Boss! Bahan Baku Baru Berhasil Didaftarkan ke Inventori**"
-      : "**✅ Siap, Boss! Permintaan Restock Bahan Baku Berhasil Dieksekusi**";
+    const hasExisting = executedItems.some((i) => !i.isNew);
+
+    let titleText = "**✅ Siap, Boss! Tangan Saya Sudah Berhasil Menambahkan Stok Bahan Baku**";
+    let descText = "Instruksi penambahan stok dari Boss telah selesai saya proses detik ini ke sistem inventaris Havenso Cafe:";
+
+    if (hasNew && !hasExisting) {
+      titleText = "**✅ Siap, Boss! Tangan Saya Sudah Berhasil Membuat & Mendaftarkan Bahan Baku Baru**";
+      descText = "Bahan baku baru yang Boss minta telah resmi saya buatkan dan daftarkan ke sistem inventaris Havenso Cafe:";
+    } else if (hasNew && hasExisting) {
+      titleText = "**✅ Siap, Boss! Tangan Saya Sudah Memproses Pendaftaran & Penambahan Stok Bahan Baku**";
+      descText = "Instruksi Boss telah selesai diterapkan ke database inventaris Havenso Cafe:";
+    }
 
     const replyLines = [
       titleText,
       "",
-      hasNew
-        ? "Instruksi Boss untuk mendaftarkan bahan baku baru telah selesai diproses ke database inventaris Havenso Cafe:"
-        : "Instruksi Boss sudah langsung saya proses dan catat detik ini ke dalam database inventaris Havenso Cafe:",
+      descText,
       "",
       ...executedItems.map((i) =>
         i.isNew
-          ? `- 📦 **${i.name}** [BAHAN BARU]: Berhasil terdaftar dengan stok awal **${i.currentStock} ${i.unit}** (Status: **${i.currentStock <= 5 ? "LOW_STOCK" : "AVAILABLE"}**)`
+          ? `- 📦 **${i.name}** [BAHAN BARU]: Berhasil dibuat dengan stok awal **${i.currentStock} ${i.unit}** (Status: **${i.currentStock <= 5 ? "LOW_STOCK" : "AVAILABLE"}**)`
           : `- 📦 **${i.name}**: Ditambahkan **+${i.added} ${i.unit}** (Stok awal: ${i.prevStock} ${i.unit} ➔ **Total Sekarang: ${i.currentStock} ${i.unit}**)`
       ),
       "",
       "**🔎 Status Operasional & Dapur**",
-      "Seluruh bahan baku di atas kini tercatat dan otomatis tersinkronisasi realtime ke tabel inventori panel management maupun panel staff.",
+      hasNew
+        ? "Bahan baru sudah resmi tercatat dan langsung muncul di tabel inventori panel management maupun panel staff secara realtime."
+        : "Stok inventori otomatis tersinkronisasi realtime ke layar dapur, kasir, dan tabel inventori.",
       "",
       "**💡 Rekomendasi Hermes**",
-      "Stok inventori sudah terupdate secara realtime. Silakan beri tahu saya jika ada bahan baku lain yang ingin didaftarkan atau disesuaikan lagi, Boss! 👨‍🍳☕✨",
+      hasNew
+        ? "Bahan baru sudah siap digunakan untuk operasional dapur dan bar. Ada bahan baku baru lain yang ingin dibuat lagi, Boss? 👨‍🍳☕✨"
+        : "Data inventori sudah terupdate secara realtime. Beri tahu saya jika ada stok bahan lain yang ingin Boss tambahkan lagi! 👨‍🍳☕✨",
     ];
 
     return {
