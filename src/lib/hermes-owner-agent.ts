@@ -969,6 +969,9 @@ Kamu harus berdialog layaknya partner kerja profesional yang cerdas, santun, luw
 4. **STATUS KAFE / BAHAN BAKU**:
    - Jika Boss bertanya "bahan baku aman?":
      → Jika ada bahan kritis (misal Gula), katakan dengan jelas bahwa ada bahan kritis (sebutkan bahannya), dan bahan lainnya aman.
+   - Jika Boss bertanya seputar stok menipis / kritis / habis / sisa ("ada lagi stok yng menipis?", "stok apa yang mau habis?", "ada bahan kurang?", dsb):
+     → Jawab dengan tegas dan to-the-point sesuai data live: sebutkan bahan yang menipis/kritis (nama, sisa stok, batas minimum), serta nyatakan apakah bahan lainnya aman. Tawarkan bantuan untuk restock langsung.
+     → Jika tidak ada bahan yang menipis sama sekali, tegaskan dengan jelas bahwa seluruh stok saat ini aman dan operasional kondusif.
    - Jika Boss bertanya "hari ini aman?":
      → Jawab ringkas status kafe hari ini (aman/ada kendala), baru sebutkan poin pentingnya tanpa bertele-tele.
 5. **BAHAN MINUMAN (BAR) VS BAHAN MAKANAN (DAPUR)**:
@@ -985,6 +988,7 @@ Kamu harus berdialog layaknya partner kerja profesional yang cerdas, santun, luw
 Berikut data resmi yang ditarik detik ini dari sistem Havenso Cafe:
 
 - Waktu Saat Ini: ${new Date(snapshot.timestamp).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB
+- Ringkasan Bahan Kritis / Menipis: ${snapshot.inventory.lowStockCount > 0 ? `⚠️ ADA ${snapshot.inventory.lowStockCount} BAHAN KRITIS: ${snapshot.inventory.lowStockList.map((i) => `${i.name} (sisa ${i.stock} ${i.unit}, batas min: ${i.minStock} ${i.unit})`).join("; ")}` : "🟢 SEMUA AMAN (0 bahan kritis / di bawah batas minimum)"}
 - Omset / Revenue Hari Ini: Rp ${snapshot.sales.todayRevenue.toLocaleString("id-ID")} (${snapshot.sales.todayOrderCount} pesanan sukses, rata-rata keranjang/AOV: Rp ${snapshot.sales.todayAov.toLocaleString("id-ID")})
 - Omset Kemarin: Rp ${snapshot.sales.yesterdayRevenue.toLocaleString("id-ID")} (${snapshot.sales.yesterdayOrderCount} pesanan)
 - Pesanan Aktif di Dapur Saat Ini: ${snapshot.operational.activeKitchenCount} antrean order (${snapshot.operational.activeKitchenOrders.length > 0 ? snapshot.operational.activeKitchenOrders.map((o) => `#${o.orderNumber} di Meja ${o.tableNumber} [${o.items}]`).join("; ") : "Dapur bersih, tidak ada antrean pending"})
@@ -1029,13 +1033,29 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
   const customModel = process.env.AI_MODEL;
   const models: string[] = [];
   if (baseUrl.includes("groq.com")) {
-    if (customModel && !customModel.includes("/")) {
+    if (customModel) {
       models.push(customModel);
     }
-    models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
+    const defaultGroq = [
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.6-27b",
+      "openai/gpt-oss-20b",
+      "groq/compound",
+    ];
+    for (const m of defaultGroq) {
+      if (!models.includes(m)) models.push(m);
+    }
   } else {
     if (customModel) models.push(customModel);
-    models.push("openai/gpt-oss-120b", "hermes-3", "groq/compound");
+    const defaultLocal = [
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.6-27b",
+      "hermes-3",
+      "groq/compound",
+    ];
+    for (const m of defaultLocal) {
+      if (!models.includes(m)) models.push(m);
+    }
   }
 
   for (const model of models) {
@@ -1060,7 +1080,7 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
         if (cloudFallbackKey && !baseUrl.includes("groq.com")) {
           baseUrl = "https://api.groq.com/openai/v1";
           apiKey = cloudFallbackKey;
-          models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
+          models.push("openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b");
         }
         continue;
       }
@@ -1077,7 +1097,7 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
         console.log("[HERMES OWNER] Gateway unreachable or error, switching to cloud fallback Groq...");
         baseUrl = "https://api.groq.com/openai/v1";
         apiKey = cloudFallbackKey;
-        models.push("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
+        models.push("openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b");
       }
     }
   }
@@ -1086,7 +1106,7 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
   const pLower = userPrompt.toLowerCase().trim();
   let fallbackReply = "";
 
-  // 1. Sapaan Singkat ("pe", "p", "halo", "tes", "hai", dll)
+  // 1. Sapaan singkat
   if (/^(pe|p|halo|hello|hai|hi|tes|test|pagi|siang|sore|malam|woi|oy|bro|boss|bos)$/i.test(pLower)) {
     return {
       reply: "Halo Boss! Sistem Hermes AI siap standby. Ada yang ingin dicek, ditanyakan, atau dibantu untuk kafe saat ini? ☕✨",
@@ -1124,19 +1144,82 @@ Jawablah pertanyaan Boss dengan cerdas, fokus pada konteks yang ditanyakan, dan 
     }
   }
 
-  // 3. Status Bahan Baku Umum ("bahan baku aman?", "stok aman?")
-  if (
-    (pLower.includes("bahan") || pLower.includes("stok") || pLower.includes("inventory")) &&
-    (pLower.includes("aman") || pLower.includes("gimana") || pLower.includes("kondisi") || pLower.includes("status"))
-  ) {
+  // 2.5. Pertanyaan Stok Menipis / Kritis / Habis / Kurang ("ada lagi stok yng menipis?", "ada yang mau habis?")
+  const isAskingLowStock =
+    pLower.includes("menipis") ||
+    pLower.includes("kritis") ||
+    pLower.includes("mau habis") ||
+    pLower.includes("hampir habis") ||
+    ((pLower.includes("stok") ||
+      pLower.includes("bahan") ||
+      pLower.includes("inventory") ||
+      pLower.includes("ada lagi") ||
+      pLower.includes("apa lagi") ||
+      pLower.includes("ada yang")) &&
+      (pLower.includes("habis") ||
+        pLower.includes("kurang") ||
+        pLower.includes("sedikit") ||
+        pLower.includes("limit") ||
+        pLower.includes("restock")));
+
+  if (isAskingLowStock) {
     if (snapshot.inventory.lowStockCount > 0) {
+      const listItems = snapshot.inventory.lowStockList
+        .map(
+          (i) =>
+            `- ⚠️ **${i.name}**: tersisa **${i.stock} ${i.unit}** (Batas Minimum: ${i.minStock} ${i.unit}) [${i.status === "OUT_OF_STOCK" ? "Habis Total" : "Menipis"}]`
+        )
+        .join("\n");
+
       return {
-        reply: `Stok bahan baku mayoritas aman, Boss. Namun terdapat **${snapshot.inventory.lowStockCount} bahan kritis** yang menyentuh batas minimum:\n${snapshot.inventory.lowStockList.map((i) => `- ⚠️ **${i.name}**: tersisa ${i.stock} ${i.unit} (Min: ${i.minStock} ${i.unit})`).join("\n")}\n\nBahan lainnya terpantau cukup. Mau langsung saya bantu buatkan catatan restock untuk bahan kritis ini, Boss?`,
+        reply: `Saat ini terdapat **${snapshot.inventory.lowStockCount} bahan baku yang menipis / menyentuh batas minimum**, Boss:\n\n${listItems}\n\nBahan baku lainnya di dapur dan bar terpantau aman dan mencukupi. Mau langsung saya bantu tambahkan stok untuk bahan di atas, Boss? Cukup beri tahu saya jumlahnya (misal: *"tambah stok ${snapshot.inventory.lowStockList[0]?.name || "gula"} 5 ${snapshot.inventory.lowStockList[0]?.unit || "kg"}*"). 👨‍🍳📦`,
         dataSnapshot: snapshot,
       };
     } else {
       return {
-        reply: `Seluruh stok bahan baku dapur dan bar saat ini berada dalam level **aman** (di atas batas minimum), Boss! Operasional siap berjalan lancar tanpa kendala keterbatasan bahan. ☕✨`,
+        reply: `Kabar baik, Boss! Seluruh stok bahan baku dapur dan bar saat ini berada dalam level **aman dan mencukupi** (tidak ada bahan yang menipis atau di bawah batas minimum). Operasional kafe siap melayani pesanan dengan lancar tanpa kendala! ☕✨`,
+        dataSnapshot: snapshot,
+      };
+    }
+  }
+
+  // 3. Status Bahan Baku Umum / Daftar Bahan Baku ("bahan baku aman?", "stok aman?", "daftar bahan baku")
+  const isGeneralStockInquiry =
+    (pLower.includes("bahan") || pLower.includes("stok") || pLower.includes("inventory")) &&
+    (pLower.includes("aman") ||
+      pLower.includes("gimana") ||
+      pLower.includes("kondisi") ||
+      pLower.includes("status") ||
+      pLower.includes("apa aja") ||
+      pLower.includes("daftar") ||
+      pLower.includes("list") ||
+      pLower.includes("cek") ||
+      pLower.includes("semua") ||
+      pLower.includes("total"));
+
+  if (isGeneralStockInquiry) {
+    if (pLower.includes("minum") || pLower.includes("bar") || pLower.includes("kopi") || pLower.includes("racikan")) {
+      return {
+        reply: `Sistem mencatat **${drinkInventory.length} bahan baku racikan minuman & bar**, Boss:\n${drinkInventory.slice(0, 10).map((i) => `- **${i.name}**: ${i.stock} ${i.unit} [${i.status}]`).join("\n")}${drinkInventory.length > 10 ? `\n- ...dan ${drinkInventory.length - 10} bahan lainnya.` : ""}\n\nSemua bahan minuman siap disajikan oleh barista! ☕`,
+        dataSnapshot: snapshot,
+      };
+    }
+
+    if (pLower.includes("makan") || pLower.includes("dapur") || pLower.includes("kitchen")) {
+      return {
+        reply: `Sistem mencatat **${foodInventory.length} bahan baku makanan & dapur**, Boss:\n${foodInventory.slice(0, 10).map((i) => `- **${i.name}**: ${i.stock} ${i.unit} [${i.status}]`).join("\n")}${foodInventory.length > 10 ? `\n- ...dan ${foodInventory.length - 10} bahan lainnya.` : ""}\n\nOperasional dapur siap memproses pesanan! 👨‍🍳🍛`,
+        dataSnapshot: snapshot,
+      };
+    }
+
+    if (snapshot.inventory.lowStockCount > 0) {
+      return {
+        reply: `Stok bahan baku mayoritas aman, Boss. Namun terdapat **${snapshot.inventory.lowStockCount} bahan kritis** yang menyentuh batas minimum:\n${snapshot.inventory.lowStockList.map((i) => `- ⚠️ **${i.name}**: tersisa ${i.stock} ${i.unit} (Min: ${i.minStock} ${i.unit})`).join("\n")}\n\nTotal terdapat **${allInventoryList.length} bahan baku** (${drinkInventory.length} bahan bar & minuman, ${foodInventory.length} bahan dapur & makanan). Mau langsung saya bantu buatkan catatan restock untuk bahan kritis ini, Boss?`,
+        dataSnapshot: snapshot,
+      };
+    } else {
+      return {
+        reply: `Seluruh stok bahan baku dapur dan bar saat ini berada dalam level **aman** (di atas batas minimum), Boss! Total tercatat **${allInventoryList.length} bahan baku** (${drinkInventory.length} bahan bar & minuman, ${foodInventory.length} bahan dapur & makanan) siap mendukung kelancaran operasional. ☕✨`,
         dataSnapshot: snapshot,
       };
     }
